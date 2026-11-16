@@ -288,7 +288,7 @@ function catiDokusu(){
     g.save(); g.translate(X(p[0]),Z(p[2])); g.rotate(ang); g.fillStyle='#141416'; g.beginPath();
     g.moveTo(0,-0.05*s); for(const [x,y] of [[0.12,-0.25],[0.35,-0.45],[0.62,-0.5],[0.55,-0.35],[0.7,-0.32],[0.58,-0.2],[0.66,-0.12],[0.4,-0.06],[0.18,0.08],[0.1,0.35],[0,0.42],[-0.1,0.35],[-0.18,0.08],[-0.4,-0.06],[-0.66,-0.12],[-0.58,-0.2],[-0.7,-0.32],[-0.55,-0.35],[-0.62,-0.5],[-0.35,-0.45],[-0.12,-0.25]]) g.lineTo(x*s,y*s);
     g.closePath(); g.fill(); g.beginPath(); g.arc(0,-0.12*s,0.07*s,0,7); g.fill(); g.globalAlpha=1; g.restore(); }
-  const armaImg=new Image(); armaImg.onload=()=>{const p=catiNokta(tL(Lt(0)-4.6*9.5),0.55),k=c.width*7/W; g.drawImage(armaImg,X(p[0])-k*0.38,Z(p[2])-k/2,k*0.77,k); window.__catiDoku&&(window.__catiDoku.needsUpdate=true);}; armaImg.src='arma.png';
+  const armaImg=new Image(); armaImg.onload=()=>{const tA=tL(Lt(0)-4.9*9.5),p=catiNokta(tA,0.55),p2=catiNokta(tA+0.01,0.55),k=c.width*17/W,ang=Math.atan2(Z(p2[2])-Z(p[2]),X(p2[0])-X(p[0])); g.save(); g.translate(X(p[0]),Z(p[2])); g.rotate(ang); g.drawImage(armaImg,-k*0.302,-k/2,k*0.604,k); g.restore(); window.__catiDoku&&(window.__catiDoku.needsUpdate=true);}; armaImg.src='arma.png';
   const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; t.anisotropy=8; window.__catiDoku=t; return t;}
 {
   // membran: kaburgalar arası ve halka bölmeleri arası yukarı kabaran "yastık"lar (alttan kemer gibi görünür)
@@ -362,9 +362,9 @@ const ekranDoku=dokuYap(512,288,(g,w,h)=>{g.fillStyle='#060606';g.fillRect(0,0,w
 {const koyu=new THREE.MeshStandardMaterial({color:0x1a1a1a}), on=new THREE.MeshBasicMaterial({map:ekranDoku});
  for(const a of [45,135]){const t=a*R,[x,y,z]=catiNokta(t,0.18);
   const e=new THREE.Mesh(new THREE.BoxGeometry(16,9,0.6),[koyu,koyu,koyu,koyu,on,koyu]); e.position.set(x,y-6.5,z); e.lookAt(0,y-12,0); scene.add(e);}
- new THREE.TextureLoader().load('arma.png',tx=>{tx.colorSpace=THREE.SRGBColorSpace; const t=90*R, dk=disKenar(t), [x,z]=nokta(t,dk.d-0.6);
-  const a=new THREE.Mesh(new THREE.PlaneGeometry(5.4,7),new THREE.MeshBasicMaterial({map:tx,transparent:true,alphaTest:0.3,side:THREE.DoubleSide}));
-  a.position.set(x,dk.y+3.3,z); a.lookAt(0,dk.y+3.3,0); (window.__statGrubu||scene).add(a);});
+ new THREE.TextureLoader().load('arma.png',tx=>{tx.colorSpace=THREE.SRGBColorSpace; tx.anisotropy=8; const t=90*R, dk=disKenar(t), [x,z]=nokta(t,dk.d-0.6);
+  const a=new THREE.Mesh(new THREE.PlaneGeometry(6.6,10.9),new THREE.MeshBasicMaterial({map:tx,transparent:true,alphaTest:0.3,side:THREE.DoubleSide}));
+  a.position.set(x,dk.y+4.4,z); a.lookAt(0,dk.y+4.4,0); (window.__statGrubu||scene).add(a);});
 }
 
 /* ============ saha, kulübeler ============ */
@@ -486,6 +486,7 @@ fetch('cevre.json').then(r=>r.json()).then(V=>{
     const bayrakDoku=(tur)=>dokuYap(96,64,(g,w,h)=>{if(tur==='tr'){g.fillStyle='#e30a17';g.fillRect(0,0,w,h);g.fillStyle='#fff';g.beginPath();g.arc(36,32,16,0,7);g.fill();g.fillStyle='#e30a17';g.beginPath();g.arc(40,32,13,0,7);g.fill();g.fillStyle='#fff';g.font='bold 18px Arial';g.fillText('★',50,39);}
       else{for(let i=0;i<8;i++){g.fillStyle=i%2?'#fff':'#111';g.fillRect(i*w/8,0,w/8+1,h);}}},false);
     const dTR=bayrakDoku('tr'), dBJK=bayrakDoku('bjk');
+    {const ai=new Image(); ai.onload=()=>{const g=dBJK.image.getContext('2d'); g.drawImage(ai,48-14,32-23,28,46); dBJK.needsUpdate=true;}; ai.src='arma.png';} // gerçek arma (Commons BesiktasJK-Logo.svg)
     [-0.25,-0.12,0,0.12,0.25].forEach((o,i)=>{const f=fm+o*yay, x=-(rmax-3)*Math.cos(f), z=(rmax-3)*Math.sin(f);
       const dir=new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.1,9,6),new THREE.MeshStandardMaterial({color:0xdddddd,metalness:0.6,roughness:0.3})); dir.position.set(x,9+4.5,z); scene.add(dir);
       const b=new THREE.Mesh(new THREE.PlaneGeometry(3.6,2.4),new THREE.MeshStandardMaterial({map:i%2?dBJK:dTR,side:THREE.DoubleSide,roughness:0.8})); b.position.set(x,9+7.6,z); b.rotation.y=f; b.translateX(1.8); scene.add(b);});
@@ -542,6 +543,7 @@ const NOKTA={
 const alt=document.getElementById('alt');
 for(const [k,[p,t]] of Object.entries(NOKTA)){const b=document.createElement('button');b.textContent=k;b.onclick=()=>{cam.position.set(...p);ctl.target.set(...t);};alt.appendChild(b);}
 window.__KAMERA=k=>{const [p,t]=NOKTA[k];cam.position.set(...p);ctl.target.set(...t);ctl.update();};
+window.__KAMERA_SET=(p,t)=>{cam.position.set(...p);ctl.target.set(...t);ctl.update();};
 window.__SEC=i=>biletGoster(i);
 
 scene.traverse(o=>{if(!o.isMesh)return; const p=o.position; const yakin=(o.isInstancedMesh&&o!==KM)?false:Math.hypot(p.x,p.z)<200;
@@ -550,7 +552,7 @@ renderer.shadowMap.needsUpdate=true; setTimeout(()=>renderer.shadowMap.needsUpda
 function boyut(){const w=innerWidth,h=innerHeight;renderer.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix();}
 addEventListener('resize',boyut);boyut();
 let fz=0,fn=0;const fe=document.getElementById('fps');
-function dongu(t){ctl.update();renderer.render(scene,cam);fn++;if(t-fz>1000){fe.textContent=fn+' fps · v0.10 · '+KALITE;if(fn<28&&PR>1.0&&!url.has('kalite')){PR=Math.max(1,PR-0.25);renderer.setPixelRatio(PR);boyut();}fz=t;fn=0;}requestAnimationFrame(dongu);}
+function dongu(t){ctl.update();renderer.render(scene,cam);fn++;if(t-fz>1000){fe.textContent=fn+' fps · v0.11 · '+KALITE;if(fn<28&&PR>1.0&&!url.has('kalite')){PR=Math.max(1,PR-0.25);renderer.setPixelRatio(PR);boyut();}fz=t;fn=0;}requestAnimationFrame(dongu);}
 requestAnimationFrame(dongu);
 window.__HAZIR=true;
 </script>
