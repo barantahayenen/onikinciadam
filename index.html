@@ -50,6 +50,7 @@ import {Sky} from 'three/addons/objects/Sky.js';
    Güncel görünüm (Baran'ın 16 Kas fotoğrafları): alt kat beyaz, üst kat siyah; Doğu alt "BEŞİKTAŞ JK", Doğu üst "Tüpraş Stadyumu".
    ===================================================================================== */
 const url=new URLSearchParams(location.search);
+const ZEMIN_ALT=8; // stat sokak seviyesinin bu kadar altında
 const AYAR={
   hedefKoltuk:42684,
   saha:{boy:105,en:68}, kaleArasi:7.95, tacArasi:6.15, n:4.2,
@@ -267,9 +268,17 @@ function catiDokusu(){
   const halkaYaz=(metin,tMerkez,yay,boy,renk,ters)=>{const harf=[...metin]; g.fillStyle=renk; g.textAlign='center'; g.textBaseline='middle'; g.font=`900 ${Math.round(c.width*boy/W)}px system-ui,Arial`;
     harf.forEach((h,i)=>{const t=(tMerkez+(i-(harf.length-1)/2)*yay/harf.length*(ters?-1:1))*R; const p=catiNokta(t,0.55), p2=catiNokta(t+0.01,0.55);
       const ang=Math.atan2(Z(p2[2])-Z(p[2]),X(p2[0])-X(p[0])); g.save(); g.translate(X(p[0]),Z(p[2])); g.rotate(ang+(ters?Math.PI:0)); g.fillText(h,0,0); g.restore();});};
-  halkaYaz('BEŞİKTAŞ',180,62,11,'#18181a',false);
-  if(url.get('sponsor')!=='0'){ halkaYaz('Tüpraş',90,26,10,'#c8102e',true); halkaYaz('Tüpraş',270,26,10,'#c8102e',false); }
-  const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; t.anisotropy=8; return t;}
+  // Yandex uydu (2024): Kuzey ucunda kavisli BEŞİKTAŞ (+arma), Doğu ve Batı kenarlarında Tüpraş (kırmızı logolu), Güney–Doğu köşesinde siyah kartal
+  halkaYaz('BEŞİKTAŞ',0,82,13,'#1e1e22',false);
+  const logo=(tM)=>{const p=catiNokta(tM*R,0.55); g.save(); g.translate(X(p[0]),Z(p[2])); g.strokeStyle='#d0102a'; g.lineWidth=Math.round(c.width*1.6/W); g.beginPath(); g.arc(0,0,c.width*4.2/W,0.3,Math.PI*1.75); g.stroke(); g.restore();};
+  if(url.get('sponsor')!=='0'){ logo(42); halkaYaz('Tüpraş',72,40,12,'#2a2b30',false); logo(203); halkaYaz('Tüpraş',236,40,12,'#2a2b30',false); }
+  { // kartal: kanatları açık siluet
+    const p=catiNokta(148*R,0.55), p2=catiNokta(149*R,0.55), ang=Math.atan2(Z(p2[2])-Z(p[2]),X(p2[0])-X(p[0])), s=c.width*16/W;
+    g.save(); g.translate(X(p[0]),Z(p[2])); g.rotate(ang); g.fillStyle='#141416'; g.beginPath();
+    g.moveTo(0,-0.05*s); for(const [x,y] of [[0.12,-0.25],[0.35,-0.45],[0.62,-0.5],[0.55,-0.35],[0.7,-0.32],[0.58,-0.2],[0.66,-0.12],[0.4,-0.06],[0.18,0.08],[0.1,0.35],[0,0.42],[-0.1,0.35],[-0.18,0.08],[-0.4,-0.06],[-0.66,-0.12],[-0.58,-0.2],[-0.7,-0.32],[-0.55,-0.35],[-0.62,-0.5],[-0.35,-0.45],[-0.12,-0.25]]) g.lineTo(x*s,y*s);
+    g.closePath(); g.fill(); g.beginPath(); g.arc(0,-0.12*s,0.07*s,0,7); g.fill(); g.restore(); }
+  const armaImg=new Image(); armaImg.onload=()=>{const p=catiNokta(-46*R,0.55),k=c.width*7/W; g.drawImage(armaImg,X(p[0])-k*0.38,Z(p[2])-k/2,k*0.77,k); window.__catiDoku&&(window.__catiDoku.needsUpdate=true);}; armaImg.src='arma.png';
+  const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; t.anisotropy=8; window.__catiDoku=t; return t;}
 {
   // membran: kaburgalar arası ve halka bölmeleri arası yukarı kabaran "yastık"lar (alttan kemer gibi görünür)
   const ALTB=8, M=RIB*ALTB, NR=KOL*6, pos=[],uv=[],idx=[],W=DIS_MAX*2;
@@ -308,25 +317,29 @@ function halka(dIc,dDis,yAlt,yUst,mat,M=480){ // kapalı halka kutu (iç/dış y
   for(let i=0;i<M;i++){const a=i*4,b=a+4; ix.push(a+1,b+1,a+2,b+1,b+2,a+2, a+3,a+2,b+3,a+2,b+2,b+3, a,a+3,b,a+3,b+3,b, a,b,a+1,b,b+1,a+1);}
   const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(p,3));g.setIndex(ix);g.computeVertexNormals(); const m=new THREE.Mesh(g,mat); scene.add(m); return m;}
 {
-  const tasM=new THREE.MeshStandardMaterial({color:0xe9e1cf,roughness:0.82});
+  const tasDoku=dokuYap(256,256,(g,w,h)=>{g.fillStyle='#e8dcc4';g.fillRect(0,0,w,h); const im=g.getImageData(0,0,w,h),d=im.data; for(let i=0;i<d.length;i+=4){const n=(Math.random()-0.5)*14; d[i]+=n; d[i+1]+=n; d[i+2]+=n*0.8;} g.putImageData(im,0,0);
+    g.strokeStyle='rgba(120,105,85,.45)'; g.lineWidth=2; for(let y=0;y<h;y+=32){g.beginPath();g.moveTo(0,y);g.lineTo(w,y);g.stroke(); const o=(y/32)%2?64:0; for(let x=o;x<w;x+=128){g.beginPath();g.moveTo(x,y);g.lineTo(x,y+32);g.stroke();}}});
+  tasDoku.wrapT=THREE.RepeatWrapping; tasDoku.repeat.set(1,9);
+  const tasM=new THREE.MeshStandardMaterial({map:tasDoku,roughness:0.85}), tasDuz=new THREE.MeshStandardMaterial({color:0xe3d7bf,roughness:0.85});
   const camM=new THREE.MeshStandardMaterial({color:0x252b33,roughness:0.25,metalness:0.45,side:THREE.DoubleSide});
   const koyuM=new THREE.MeshStandardMaterial({color:0x22252a,roughness:0.6,metalness:0.3});
   // sütunlar arası koyu cam/gölge duvarı
   halka(t=>CEP(t)-2.0,t=>CEP(t)-1.9,()=>0,SUTUN_UST,camM,360);
   // sütunlar: ~5,6 m aralık, 2,0 m geniş, 2,6 m derin
   {const D=CEP; const N2=2000,LL2=[0],TT2=[0]; {let o=nokta(0,D(0)); for(let i=1;i<=N2;i++){const t=i/N2*Math.PI*2,q2=nokta(t,D(t)); LL2.push(LL2[i-1]+Math.hypot(q2[0]-o[0],q2[1]-o[1])); TT2.push(t); o=q2;}}
-   const n=Math.round(LL2[N2]/5.6), sut=new THREE.InstancedMesh(new THREE.BoxGeometry(2.5,1,2.6),tasM,n), dik=new THREE.InstancedMesh(new THREE.BoxGeometry(0.18,1,0.18),koyuM,n);
+   const n=Math.round(LL2[N2]/4.8), sut=new THREE.InstancedMesh(new THREE.BoxGeometry(2.3,1,3.4),tasM,n), dik=new THREE.InstancedMesh(new THREE.BoxGeometry(0.35,1,0.35),new THREE.MeshStandardMaterial({color:0xe9e5db,roughness:0.6}),n);
    const m=new THREE.Matrix4(), q=new THREE.Quaternion(), v=new THREE.Vector3(), sc=new THREE.Vector3();
-   for(let k=0;k<n;k++){const Lk=k/n*LL2[N2]; let j=1; while(LL2[j]<Lk)j++; const t=TT2[j], p=ic(t), [x,z]=nokta(t,D(t)-0.6), Hs=SUTUN_UST(t), H=catiH(t);
+   for(let k=0;k<n;k++){const Lk=k/n*LL2[N2]; let j=1; while(LL2[j]<Lk)j++; const t=TT2[j], p=ic(t), [x,z]=nokta(t,D(t)-0.4), Hs=SUTUN_UST(t), H=catiH(t);
      q.setFromAxisAngle(new THREE.Vector3(0,1,0),Math.atan2(p.nx,p.nz)); m.compose(v.set(x,Hs/2,z),q,sc.set(1,Hs,1)); sut.setMatrixAt(k,m);
      const [x2,z2]=nokta(t,D(t)+0.1); m.compose(v.set(x2,(Hs+2+H)/2,z2),q,sc.set(1,H-Hs-2,1)); dik.setMatrixAt(k,m);}
    scene.add(sut); scene.add(dik);}
   // sütun başı taş kuşak
-  halka(t=>CEP(t)-2.0,t=>CEP(t)+0.75,SUTUN_UST,t=>SUTUN_UST(t)+2.0,tasM);
+  halka(t=>CEP(t)-2.0,t=>CEP(t)+1.3,SUTUN_UST,t=>SUTUN_UST(t)+2.0,tasDuz);
+  halka(t=>CEP(t)-1.95,t=>CEP(t)-1.2,()=>4.6+ZEMIN_ALT,()=>5.8+ZEMIN_ALT,tasDuz); // zemin kat üst kuşağı (sokak seviyesinde)
   // üst açık şerit: koyu, yarı saydam korkuluk/cam (içerideki çelik görünür)
-  halka(t=>CEP(t)+0.05,t=>CEP(t)+0.12,t=>SUTUN_UST(t)+2.0,t=>catiH(t)-0.7,new THREE.MeshStandardMaterial({color:0x15181c,roughness:0.4,metalness:0.3,transparent:true,opacity:0.55,side:THREE.DoubleSide}),360);
+  halka(t=>CEP(t)+0.05,t=>CEP(t)+0.12,t=>SUTUN_UST(t)+2.0,t=>catiH(t)-0.7,new THREE.MeshStandardMaterial({color:0xcfc3a8,roughness:0.7,transparent:true,opacity:0.32,side:THREE.DoubleSide}),360);
   // çatı kenarı: ince koyu alın
-  halka(t=>disKenar(t).d+DIS_EK-0.2,t=>disKenar(t).d+DIS_EK+0.2,t=>catiH(t)-1.0,t=>catiH(t)+0.25,koyuM);
+  halka(t=>disKenar(t).d+DIS_EK-0.2,t=>disKenar(t).d+DIS_EK+0.2,t=>catiH(t)-1.0,t=>catiH(t)+0.25,new THREE.MeshStandardMaterial({color:0xcfc5b3,roughness:0.7}));
   // üst kat arkası ile cephe arası: koyu iç duvar (stat içinden alt kısımda boşluk görünmesin)
   const ic2=[],ii=[]; for(let i=0;i<=360;i++){const t=i*R,dk=disKenar(t),[x,z]=nokta(t,dk.d+0.2); ic2.push(x,0,z,x,dk.y-0.5,z);} for(let i=0;i<360;i++){const a=i*2;ii.push(a,a+2,a+1,a+2,a+3,a+1);}
   const g2=new THREE.BufferGeometry();g2.setAttribute('position',new THREE.Float32BufferAttribute(ic2,3));g2.setIndex(ii);g2.computeVertexNormals();
@@ -364,7 +377,6 @@ const ekranDoku=dokuYap(512,288,(g,w,h)=>{g.fillStyle='#060606';g.fillRect(0,0,w
 }
 
 /* ============ stat sokak seviyesinin altında (gerçekte kazılmış vadide; dışarıdan ~34 m görünür) ============ */
-const ZEMIN_ALT=8;
 const statGrubu=new THREE.Group(); [...scene.children].forEach(o=>{if(!o.isLight&&o!==gunes.target)statGrubu.add(o);}); statGrubu.position.y=-ZEMIN_ALT; scene.add(statGrubu); window.__statGrubu=statGrubu;
 const statIcinde=(x,z)=>(x*x)/(118*118)+(z*z)/(98*98)<1;
 /* ============ ÇEVRE (OpenStreetMap, cevre.json): gerçek binalar, saray, parklar, yollar, ağaçlar, kıyı ============
@@ -434,7 +446,12 @@ fetch('cevre.json').then(r=>r.json()).then(V=>{
      const kl=new THREE.Mesh(new THREE.ConeGeometry(1.2,7,10),kubbeMat); kl.position.set(16,49.5,z); g.add(kl);}
    g.position.set(V.ozel.cami[0],0,V.ozel.cami[1]); g.rotation.y=2.9; scene.add(g);}
   // Eski Açık Tribün (tarihî, müze) — OSM taban planı: taş duvar + üstte ince korniş
-  if(V.ozel.eskiAcik){const g=binaGeo([[V.ozel.eskiAcik,8]],b=>b[1],c=>c.set(0xd9ccb1)); scene.add(new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:0xffffff,vertexColors:true,roughness:0.9,side:THREE.DoubleSide})));}
+  if(V.ozel.eskiAcik){const a=V.ozel.eskiAcik, g=binaGeo([[a,9]],b=>b[1],c=>c.set(0xd8c3a6)); scene.add(new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:0xffffff,vertexColors:true,roughness:0.9,side:THREE.DoubleSide})));
+   // tarihî kuleler: kavisin iki ucunda (Yandex panorama 2024'te güneybatı kulesi görülüyor)
+   let mn=null,mx=null; for(let i=0;i<a.length;i+=2){const pt=[a[i]*0.1,a[i+1]*0.1]; if(!mn||pt[1]<mn[1])mn=pt; if(!mx||pt[1]>mx[1])mx=pt;}
+   const km=new THREE.MeshStandardMaterial({color:0xd6c7ab,roughness:0.9});
+   for(const pt of [mn,mx]){const k=new THREE.Mesh(new THREE.BoxGeometry(8,22,8),km); k.position.set(pt[0],11,pt[1]); scene.add(k); const tp=new THREE.Mesh(new THREE.BoxGeometry(9,1.2,9),km); tp.position.set(pt[0],22.6,pt[1]); scene.add(tp);
+     for(const [dx,dz] of [[0,4.05],[0,-4.05],[4.05,0],[-4.05,0]]){const pc=new THREE.Mesh(new THREE.PlaneGeometry(dx?0.01:1.4,4),new THREE.MeshStandardMaterial({color:0x2a2a2a})); pc.position.set(pt[0]+dx,16,pt[1]+dz); if(dx)pc.rotation.y=Math.PI/2; scene.add(pc);}}}
   // Dolmabahçe Saat Kulesi
   if(V.ozel.saatKulesi){const g=new THREE.Group(); let y=0; for(const [w,h] of [[7,6],[6,8],[5.2,7],[4.6,5]]){const b=new THREE.Mesh(new THREE.BoxGeometry(w,h,w),koyuTas); b.position.y=y+h/2; g.add(b); y+=h;
      const c2=new THREE.Mesh(new THREE.BoxGeometry(w+0.8,0.6,w+0.8),tasM); c2.position.y=y; g.add(c2);}
@@ -487,7 +504,7 @@ renderer.shadowMap.needsUpdate=true; setTimeout(()=>renderer.shadowMap.needsUpda
 function boyut(){const w=innerWidth,h=innerHeight;renderer.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix();}
 addEventListener('resize',boyut);boyut();
 let fz=0,fn=0;const fe=document.getElementById('fps');
-function dongu(t){ctl.update();renderer.render(scene,cam);fn++;if(t-fz>1000){fe.textContent=fn+' fps · v0.6 · '+KALITE;if(fn<28&&PR>1.0&&!url.has('kalite')){PR=Math.max(1,PR-0.25);renderer.setPixelRatio(PR);boyut();}fz=t;fn=0;}requestAnimationFrame(dongu);}
+function dongu(t){ctl.update();renderer.render(scene,cam);fn++;if(t-fz>1000){fe.textContent=fn+' fps · v0.7 · '+KALITE;if(fn<28&&PR>1.0&&!url.has('kalite')){PR=Math.max(1,PR-0.25);renderer.setPixelRatio(PR);boyut();}fz=t;fn=0;}requestAnimationFrame(dongu);}
 requestAnimationFrame(dongu);
 window.__HAZIR=true;
 </script>
