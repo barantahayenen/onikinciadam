@@ -73,6 +73,7 @@ const AYAR={
   ],
   yazilar:[ // koltuklarla yazılar: kat, merkez t, genişlik (m), sıra aralığı, renk
     {metin:'BEŞİKTAŞ JK', kat:1, t:90, gen:82, r0:6, r1:20, renk:'siyah', font:'900'},
+    {metin:'1903', kat:2, t:0, gen:16, r0:8, r1:17, renk:'beyaz', font:'900'},
     ...(url.get('sponsor')==='0'?[]:[{metin:'Tüpraş Stadyumu', kat:2, t:90, gen:92, r0:7, r1:17, renk:'beyaz', font:'italic 700', logo:true}]),
   ],
   renk:{altBeyaz:0xf0f0ec, altGri:0xd9d9d4, ustSiyah:0x1d1d1f, ustGri:0x2c2c2f, siyah:0x161616, beyaz:0xf2f2ee,
@@ -253,7 +254,7 @@ const catiH=t=>CATI_TEPE-2.2*(1-Math.pow(Math.abs(Math.sin(t)),2))-(Math.sin(t)>
 const IC_D=-1.0, DIS_EK=3.5;              // çatı iç kenarı ilk sıranın biraz önü; dış kenar cepheyi aşar
 const catiIcH=t=>catiH(t)-4.2;
 const DIS_MAX=(()=>{let m=0;for(let i=0;i<360;i++){const t=i*R,[x,z]=nokta(t,disKenar(t).d+DIS_EK);m=Math.max(m,Math.abs(x),Math.abs(z));}return m+4;})();
-const RIB=64, KOL=4; // radyal kaburga sayısı, halka yönünde bölme (yastık sıraları)
+const RIB=56, KOL=5; // radyal kaburga sayısı, halka yönünde bölme (yastık sıraları)
 function catiNokta(t,fr){const dk=disKenar(t), d=IC_D+(dk.d+DIS_EK-IC_D)*fr; const [x,z]=nokta(t,d); return [x,catiIcH(t)+(catiH(t)-catiIcH(t))*fr,z];}
 function catiDokusu(){
   const c=document.createElement('canvas'); c.width=2048; c.height=2048; const g=c.getContext('2d');
@@ -269,22 +270,22 @@ function catiDokusu(){
     harf.forEach((h,i)=>{const t=(tMerkez+(i-(harf.length-1)/2)*yay/harf.length*(ters?-1:1))*R; const p=catiNokta(t,0.55), p2=catiNokta(t+0.01,0.55);
       const ang=Math.atan2(Z(p2[2])-Z(p[2]),X(p2[0])-X(p[0])); g.save(); g.translate(X(p[0]),Z(p[2])); g.rotate(ang+(ters?Math.PI:0)); g.fillText(h,0,0); g.restore();});};
   // Yandex uydu (2024): Kuzey ucunda kavisli BEŞİKTAŞ (+arma), Doğu ve Batı kenarlarında Tüpraş (kırmızı logolu), Güney–Doğu köşesinde siyah kartal
-  halkaYaz('BEŞİKTAŞ',0,82,13,'#1e1e22',false);
+  halkaYaz('BEŞİKTAŞ',0,64,13,'#1e1e22',false);
   const logo=(tM)=>{const p=catiNokta(tM*R,0.55); g.save(); g.translate(X(p[0]),Z(p[2])); g.strokeStyle='#d0102a'; g.lineWidth=Math.round(c.width*1.6/W); g.beginPath(); g.arc(0,0,c.width*4.2/W,0.3,Math.PI*1.75); g.stroke(); g.restore();};
-  if(url.get('sponsor')!=='0'){ logo(42); halkaYaz('Tüpraş',72,40,12,'#2a2b30',false); logo(203); halkaYaz('Tüpraş',236,40,12,'#2a2b30',false); }
+  if(url.get('sponsor')!=='0'){ logo(58); halkaYaz('Tüpraş',96,50,14,'#2a2b30',false); logo(222); halkaYaz('Tüpraş',258,50,14,'#2a2b30',false); }
   { // kartal: kanatları açık siluet
-    const p=catiNokta(148*R,0.55), p2=catiNokta(149*R,0.55), ang=Math.atan2(Z(p2[2])-Z(p[2]),X(p2[0])-X(p[0])), s=c.width*16/W;
+    const p=catiNokta(178*R,0.55), p2=catiNokta(179*R,0.55), ang=Math.atan2(Z(p2[2])-Z(p[2]),X(p2[0])-X(p[0])), s=c.width*26/W; g.globalAlpha=0.85;
     g.save(); g.translate(X(p[0]),Z(p[2])); g.rotate(ang); g.fillStyle='#141416'; g.beginPath();
     g.moveTo(0,-0.05*s); for(const [x,y] of [[0.12,-0.25],[0.35,-0.45],[0.62,-0.5],[0.55,-0.35],[0.7,-0.32],[0.58,-0.2],[0.66,-0.12],[0.4,-0.06],[0.18,0.08],[0.1,0.35],[0,0.42],[-0.1,0.35],[-0.18,0.08],[-0.4,-0.06],[-0.66,-0.12],[-0.58,-0.2],[-0.7,-0.32],[-0.55,-0.35],[-0.62,-0.5],[-0.35,-0.45],[-0.12,-0.25]]) g.lineTo(x*s,y*s);
-    g.closePath(); g.fill(); g.beginPath(); g.arc(0,-0.12*s,0.07*s,0,7); g.fill(); g.restore(); }
-  const armaImg=new Image(); armaImg.onload=()=>{const p=catiNokta(-46*R,0.55),k=c.width*7/W; g.drawImage(armaImg,X(p[0])-k*0.38,Z(p[2])-k/2,k*0.77,k); window.__catiDoku&&(window.__catiDoku.needsUpdate=true);}; armaImg.src='arma.png';
+    g.closePath(); g.fill(); g.beginPath(); g.arc(0,-0.12*s,0.07*s,0,7); g.fill(); g.globalAlpha=1; g.restore(); }
+  const armaImg=new Image(); armaImg.onload=()=>{const p=catiNokta(-42*R,0.55),k=c.width*7/W; g.drawImage(armaImg,X(p[0])-k*0.38,Z(p[2])-k/2,k*0.77,k); window.__catiDoku&&(window.__catiDoku.needsUpdate=true);}; armaImg.src='arma.png';
   const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; t.anisotropy=8; window.__catiDoku=t; return t;}
 {
   // membran: kaburgalar arası ve halka bölmeleri arası yukarı kabaran "yastık"lar (alttan kemer gibi görünür)
   const ALTB=8, M=RIB*ALTB, NR=KOL*6, pos=[],uv=[],idx=[],W=DIS_MAX*2;
   for(let i=0;i<=M;i++){const t=i/M*Math.PI*2, bf=(i%ALTB)/ALTB;
     for(let j=0;j<=NR;j++){const fr=j/NR, rf=(j%6)/6, [x,y,z]=catiNokta(t,fr);
-      const kab=1.1*Math.sin(Math.PI*bf)*(0.35+0.65*Math.sin(Math.PI*rf));
+      const kab=2.1*Math.sin(Math.PI*bf)*(0.35+0.65*Math.sin(Math.PI*rf));
       pos.push(x,y+kab,z); uv.push(x/W+0.5,1-(z/W+0.5));}}
   for(let i=0;i<M;i++)for(let j=0;j<NR;j++){const a=i*(NR+1)+j,b=(i+1)*(NR+1)+j;idx.push(a,b,a+1,b,b+1,a+1);}
   const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));g.setIndex(idx);g.computeVertexNormals();
@@ -459,6 +460,10 @@ fetch('cevre.json').then(r=>r.json()).then(V=>{
     const basG=[]; for(let k=0;k<9;k++){const g=new THREE.ExtrudeGeometry(sektor(rmax-2,rmax+1+(9-k)*0.9,fm-yay/2,fm+yay/2),{depth:0.35*(k+1),bevelEnabled:false,curveSegments:4}); g.rotateX(-Math.PI/2); basG.push(g);}
     // not: sektor (x,y)=( -r cos f, -r sin f ) → döndürünce dünya (x, z=r sin f)·(-1)… işaret düzeltmesi aşağıda
     const mer=new THREE.Mesh(mergeGeometries(basG),merM); scene.add(mer);
+    // stat ile Eski Açık arası: açık mavi cam avlu örtüsü (Yandex 3D)
+    {const rc=Math.hypot(...nokta(Math.PI,CEP(Math.PI)))+0.5, ri=(()=>{let m=1e9; for(let i=0;i<a.length;i+=2)m=Math.min(m,Math.hypot(a[i]*0.1,a[i+1]*0.1)); return m;})();
+     if(ri>rc+1){const cg=new THREE.ExtrudeGeometry(sektor(rc,ri,fm-yay/2*1.05,fm+yay/2*1.05),{depth:0.25,bevelEnabled:false,curveSegments:4}); cg.rotateX(-Math.PI/2); cg.translate(0,7.2,0);
+       scene.add(new THREE.Mesh(cg,new THREE.MeshStandardMaterial({color:0x9fd0ef,roughness:0.15,metalness:0.2,transparent:true,opacity:0.8})));}}
     // kartal heykeli: merdiven başında, ortada
     const kx=-(rmax+0.5)*Math.cos(fm), kz=(rmax+0.5)*Math.sin(fm), bronz=new THREE.MeshStandardMaterial({color:0x3a3026,roughness:0.35,metalness:0.7});
     const kg=new THREE.Group(); const kaide=new THREE.Mesh(new THREE.BoxGeometry(2.6,3.2,2.6),new THREE.MeshStandardMaterial({color:0x6b6458,roughness:0.6})); kaide.position.y=3.15+1.6; kg.add(kaide);
@@ -535,7 +540,7 @@ renderer.shadowMap.needsUpdate=true; setTimeout(()=>renderer.shadowMap.needsUpda
 function boyut(){const w=innerWidth,h=innerHeight;renderer.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix();}
 addEventListener('resize',boyut);boyut();
 let fz=0,fn=0;const fe=document.getElementById('fps');
-function dongu(t){ctl.update();renderer.render(scene,cam);fn++;if(t-fz>1000){fe.textContent=fn+' fps · v0.8 · '+KALITE;if(fn<28&&PR>1.0&&!url.has('kalite')){PR=Math.max(1,PR-0.25);renderer.setPixelRatio(PR);boyut();}fz=t;fn=0;}requestAnimationFrame(dongu);}
+function dongu(t){ctl.update();renderer.render(scene,cam);fn++;if(t-fz>1000){fe.textContent=fn+' fps · v0.9 · '+KALITE;if(fn<28&&PR>1.0&&!url.has('kalite')){PR=Math.max(1,PR-0.25);renderer.setPixelRatio(PR);boyut();}fz=t;fn=0;}requestAnimationFrame(dongu);}
 requestAnimationFrame(dongu);
 window.__HAZIR=true;
 </script>
