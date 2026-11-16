@@ -32,6 +32,7 @@ html,body{margin:0;height:100%;background:#8fb6e0;overflow:hidden;font-family:sy
   <div class="kart bilet" id="bilet"></div>
 </div>
 <div id="fps"></div>
+<div style="position:fixed;right:8px;bottom:58px;font:600 9px system-ui;color:#fff;opacity:.75;text-shadow:0 1px 2px #000;z-index:6;pointer-events:none">Harita verisi © OpenStreetMap katkıcıları</div>
 <div class="alt" id="alt"></div>
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
@@ -89,10 +90,12 @@ renderer.shadowMap.enabled=KALITE!=='dusuk'; renderer.shadowMap.type=THREE.PCFSo
 const scene=new THREE.Scene();
 const GUNES_YON=new THREE.Vector3(-0.55,0.62,-0.56).normalize(); // öğleden sonra, batı-güneybatıdan
 function gokKur(){const sky=new Sky(); sky.scale.setScalar(8000); const u=sky.material.uniforms;
-  u.turbidity.value=2.0; u.rayleigh.value=2.2; u.mieCoefficient.value=0.004; u.mieDirectionalG.value=0.8; u.sunPosition.value.copy(GUNES_YON); return sky;}
-scene.add(gokKur());
+  u.turbidity.value=1.6; u.rayleigh.value=3.2; u.mieCoefficient.value=0.002; u.mieDirectionalG.value=0.8; u.sunPosition.value.copy(GUNES_YON); return sky;}
+{const c=document.createElement('canvas');c.width=4;c.height=512;const g=c.getContext('2d');const gr=g.createLinearGradient(0,0,0,512);
+ gr.addColorStop(0,'#2f6fbf');gr.addColorStop(0.55,'#6fa3dc');gr.addColorStop(0.85,'#a9c8e8');gr.addColorStop(1,'#c9dbea');g.fillStyle=gr;g.fillRect(0,0,4,512);
+ const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;scene.background=t;} // görünen gök: kontrollü mavi; Sky yalnız yansıma için
 {const pm=new THREE.PMREMGenerator(renderer), gs=new THREE.Scene(); gs.add(gokKur()); scene.environment=pm.fromScene(gs,0,1,9000).texture; pm.dispose();}
-scene.fog=new THREE.Fog(0xa9c4e0,1600,9000);
+scene.fog=new THREE.Fog(0xb9cfe5,1800,9000);
 const cam=new THREE.PerspectiveCamera(45,1,0.5,9000); cam.position.set(170,130,190);
 const ctl=new OrbitControls(cam,cv); ctl.target.set(0,8,0); ctl.enableDamping=true; ctl.maxPolarAngle=Math.PI*0.495; ctl.minDistance=5; ctl.maxDistance=2500;
 scene.add(new THREE.HemisphereLight(0xdfeaff,0x6f6a5c,0.55));
@@ -364,93 +367,86 @@ const ekranDoku=dokuYap(512,288,(g,w,h)=>{g.fillStyle='#060606';g.fillRect(0,0,w
   for(const x of [-9,9]){const k=new THREE.Mesh(kg,new THREE.MeshStandardMaterial({color:0x111214,side:THREE.DoubleSide})); k.position.set(x,0,-(B-1.8)); scene.add(k);}
 }
 
-/* ============ ÇEVRE: Boğaz, Dolmabahçe Camii, Saat Kulesi, Saray, Maçka ağaçları, binalar, köprü ============
-   Gerçek yön (E doğu, N kuzey, metre) → stat koordinatı. Güney (Eski Açık) ucu denize (güneydoğu) bakar. */
-const P=(E,N)=>[(N-E)/Math.SQRT2,(E+N)/Math.SQRT2];
-const KIYI=N=>380+N*0.375;            // Avrupa kıyısı (E), kuzeye doğru açılır
-const KARSI=N=>1900+N*0.375;          // Asya kıyısı
-function cokgen(noktalar,renk,y=0){const sh=new THREE.Shape(); noktalar.forEach(([E,N],i)=>{const [x,z]=P(E,N); i?sh.lineTo(x,-z):sh.moveTo(x,-z);});
-  const m=new THREE.Mesh(new THREE.ShapeGeometry(sh),new THREE.MeshStandardMaterial({color:renk})); m.rotation.x=-Math.PI/2; m.position.y=y; scene.add(m); return m;}
-function koy(obj,E,N,y=0,yon=0){const [x,z]=P(E,N); obj.position.set(x,y,z); obj.rotation.y=yon; scene.add(obj); return obj;}
-const kiyiAci=Math.atan2(0.375,1); // kıyı çizgisinin kuzeyden sapması
-const yonKiyi=-Math.PI/4+kiyiAci;   // stat koordinatında kıyıya paralel nesne açısı (yaklaşık)
-{
-  const N0=-4000,N1=5000;
-  cokgen([[-3000,N0],[KIYI(N0),N0],[KIYI(N1),N1],[-3000,N1]],0x8a8c84,-0.08);          // Avrupa yakası zemin
-  const deniz=new THREE.MeshStandardMaterial({color:0x1d5677,roughness:0.08,metalness:0.1});
-  const dsh=new THREE.Shape(); [[KIYI(N0),N0],[KARSI(N0)+40,N0],[KARSI(N1)+40,N1],[KIYI(N1),N1]].forEach(([E,N],i)=>{const [x,z]=P(E,N); i?dsh.lineTo(x,-z):dsh.moveTo(x,-z);});
-  const dm=new THREE.Mesh(new THREE.ShapeGeometry(dsh),deniz); dm.rotation.x=-Math.PI/2; dm.position.y=-0.6; scene.add(dm);
-  cokgen([[KARSI(N0),N0],[6000,N0],[6000,N1],[KARSI(N1),N1]],0x7d8676,-0.08);           // Asya yakası
-  // rıhtım (kıyı boyunca açık taş)
-  cokgen([[KIYI(-1200)-18,-1200],[KIYI(-1200),-1200],[KIYI(1600),1600],[KIYI(1600)-18,1600]],0xd6d2c6,0.02);
-  // Dolmabahçe Caddesi (kıyıya paralel) + stat önü yolları
-  cokgen([[KIYI(-1200)-150,-1200],[KIYI(-1200)-128,-1200],[KIYI(1600)-128,1600],[KIYI(1600)-150,1600]],0x3d3f44,0.03);
-  {const r=[];for(let i=0;i<=64;i++){const t=i/64*Math.PI*2,[x,z]=nokta(t,disKenar(t).d+DIS_EK+30);r.push([x,z]);}
-   const sh=new THREE.Shape(); r.forEach(([x,z],i)=>i?sh.lineTo(x,-z):sh.moveTo(x,-z)); const hl=new THREE.Path(); r.slice().reverse().forEach(([x,z],i)=>{const k=0.86; i?hl.lineTo(x*k,-z*k):hl.moveTo(x*k,-z*k);}); sh.holes.push(hl);
-   const yol=new THREE.Mesh(new THREE.ShapeGeometry(sh),new THREE.MeshStandardMaterial({color:0x44464b})); yol.rotation.x=-Math.PI/2; yol.position.y=-0.02; scene.add(yol);}
-  {const sh=new THREE.Shape(); for(let i=0;i<=90;i++){const t=i/90*Math.PI*2,[x,z]=nokta(t,disKenar(t).d+DIS_EK+20); i?sh.lineTo(x,-z):sh.moveTo(x,-z);}
-   const md=new THREE.Mesh(new THREE.ShapeGeometry(sh),new THREE.MeshStandardMaterial({color:0xcfccc2})); md.rotation.x=-Math.PI/2; md.position.y=-0.03; scene.add(md);}
-
-  const tas=new THREE.MeshStandardMaterial({color:0xeee9dd}), kubbeMat=new THREE.MeshStandardMaterial({color:0x9fb0b8}), koyuTas=new THREE.MeshStandardMaterial({color:0xcfc6b2});
-  // Dolmabahçe Camii (kıyıda, güneyde): kare gövde, kasnak, büyük kubbe, denize bakan iki ince minare
-  {const g=new THREE.Group(); const kutu=(w,h,d,x,y,z,m=tas)=>{const b=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);b.position.set(x,y,z);g.add(b);};
-   kutu(26,16,26,0,8,0); kutu(30,2,30,0,16.5,0,koyuTas);
-   const kas=new THREE.Mesh(new THREE.CylinderGeometry(10,10.5,6,24),tas); kas.position.y=20; g.add(kas);
-   const kub=new THREE.Mesh(new THREE.SphereGeometry(10.2,24,12,0,Math.PI*2,0,Math.PI/2),kubbeMat); kub.position.y=23; g.add(kub);
-   for(const [x,z] of [[11,11],[11,-11],[-11,11],[-11,-11]]){const k=new THREE.Mesh(new THREE.CylinderGeometry(1.6,1.6,6,10),tas);k.position.set(x,19,z);g.add(k);}
-   kutu(14,10,26,-18,5,0); // son cemaat yeri
-   for(const z of [-24,24]){const m=new THREE.Mesh(new THREE.CylinderGeometry(1.1,1.4,46,10),tas); m.position.set(16,23,z); g.add(m);
-     const s=new THREE.Mesh(new THREE.CylinderGeometry(1.9,1.9,1,10),koyuTas); s.position.set(16,36,z); g.add(s);
-     const kl=new THREE.Mesh(new THREE.ConeGeometry(1.2,7,10),kubbeMat); kl.position.set(16,49.5,z); g.add(kl);}
-   const [x,z]=P(KIYI(-560)-30,-560); g.position.set(x,0,z); g.rotation.y=yonKiyi+Math.PI/2; scene.add(g);}
-  // Dolmabahçe Saat Kulesi: 4 kademeli, üstte saat ve küçük kubbe
-  {const g=new THREE.Group(); let y=0; for(const [w,h] of [[7,6],[6,8],[5.2,7],[4.6,5]]){const b=new THREE.Mesh(new THREE.BoxGeometry(w,h,w),koyuTas); b.position.y=y+h/2; g.add(b); y+=h;
-     const c=new THREE.Mesh(new THREE.BoxGeometry(w+0.8,0.6,w+0.8),tas); c.position.y=y; g.add(c);}
-   const s=new THREE.Mesh(new THREE.CylinderGeometry(1.5,1.5,0.2,16),new THREE.MeshBasicMaterial({color:0xffffff})); s.rotation.x=Math.PI/2; s.position.set(0,y-2.5,2.4); g.add(s);
-   const k=new THREE.Mesh(new THREE.SphereGeometry(2.2,12,8,0,Math.PI*2,0,Math.PI/2),kubbeMat); k.position.y=y+0.3; g.add(k);
-   const [x,z]=P(KIYI(-300)-45,-300); g.position.set(x,0,z); scene.add(g);}
-  // Dolmabahçe Sarayı: kıyı boyunca ~600 m beyaz cephe, ortada Muayede Salonu (büyük kubbeli)
-  const sarayDoku=dokuYap(256,128,(g,w,h)=>{g.fillStyle='#f1ece0';g.fillRect(0,0,w,h);g.fillStyle='#dcd4c2';g.fillRect(0,0,w,10);g.fillRect(0,h*0.5,w,6);
-    for(let x=8;x<w;x+=32){g.fillStyle='#9fa7ad';g.fillRect(x+6,18,14,34);g.fillRect(x+6,h*0.5+16,14,36);g.fillStyle='#e6dfcf';g.fillRect(x,0,5,h);}});
-  sarayDoku.wrapT=THREE.RepeatWrapping;
-  const sarayMat=new THREE.MeshStandardMaterial({map:sarayDoku});
-  {const parcalar=[]; const ek=(Nm,uz,yuk,der,geri=0)=>{const E=KIYI(Nm)-25-geri-der/2; const gg=new THREE.BoxGeometry(der,yuk,uz); const uvs=gg.attributes.uv; for(let i=0;i<uvs.count;i++)uvs.setXY(i,uvs.getX(i)*uz/24,uvs.getY(i)*Math.max(1,Math.round(yuk/9))); const b=new THREE.Mesh(gg,sarayMat); koy(b,E,Nm,yuk/2,yonKiyi+Math.PI/2);};
-   for(let Nm=-210;Nm<=420;Nm+=42){const merkez=Math.abs(Nm-90)<30; ek(Nm,40,merkez?26:16,merkez?60:28,merkez?0:6);}
-   const kub=new THREE.Mesh(new THREE.SphereGeometry(16,20,10,0,Math.PI*2,0,Math.PI/2),kubbeMat); koy(kub,KIYI(90)-55,90,26);
-   cokgen([[KIYI(-230)-120,-230],[KIYI(-230)-20,-230],[KIYI(440)-20,440],[KIYI(440)-120,440]],0x5f8a4a,0.03); // saray bahçesi
-  }
-  // ağaçlar: Maçka/Dolmabahçe vadisi ve saray bahçesi
-  {const yer=[]; let s=7; const rnd=()=>{s=(s*16807)%2147483647;return s/2147483647;};
-   for(let i=0;i<5000&&yer.length<1500;i++){const r=170+rnd()*900, b=(rnd()*360)*R, E=r*Math.sin(b), N=r*Math.cos(b);
-     if(E>KIYI(N)-30) continue;                              // denize ağaç yok
-     const [x,z]=P(E,N); const bd=Math.hypot(x,z); if(bd<175) continue;
-     const kuzeyBati=(b>200*R||b<20*R), bahce=(E>KIYI(N)-130&&N>-230&&N<440);
-     if(!(kuzeyBati&&rnd()<0.85)&&!(bahce&&rnd()<0.5)) continue;
-     if(Math.abs(E-(KIYI(N)-139))<16) continue;               // yol
-     yer.push([x,z,5+rnd()*6]);}
-   const ag=new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1,0),new THREE.MeshStandardMaterial({color:0xffffff}),yer.length), m=new THREE.Matrix4(), c=new THREE.Color();
-   yer.forEach(([x,z,h],i)=>{m.makeScale(h*0.8,h,h*0.8); m.setPosition(x,h*0.9,z); ag.setMatrixAt(i,m); ag.setColorAt(i,c.setHSL(0.27+hsh(i,1)*0.06,0.38,0.24+hsh(i,2)*0.1));}); scene.add(ag);}
-  // binalar: Gümüşsuyu/Beşiktaş/Nişantaşı (Avrupa) + Üsküdar (Asya) — tek InstancedMesh
-  {const yer=[]; let s=11; const rnd=()=>{s=(s*16807)%2147483647;return s/2147483647;};
-   for(let i=0;i<9000&&yer.length<1400;i++){const r=330+rnd()*2600, b=rnd()*360*R, E=r*Math.sin(b), N=r*Math.cos(b);
-     const avrupa=E<KIYI(N)-170, asya=E>KARSI(N)+60; if(!avrupa&&!asya) continue;
-     if(avrupa&&(b>270*R||b<15*R)&&r<1000) continue;          // Maçka parkı boşluğu
-     if(avrupa&&N>-260&&N<460&&E>KIYI(N)-260) continue;      // saray arkası
-     const [x,z]=P(E,N); const w=10+rnd()*16, d=10+rnd()*16, h=asya?6+rnd()*18:12+rnd()*24; yer.push([x,z,w,d,h,rnd()*Math.PI]);}
-   yer.push([...P(-180,520),70,26,58,0.6]); // Swissotel benzeri büyük otel kütlesi (kuzeybatı tepesi)
-   const bm=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),new THREE.MeshStandardMaterial({color:0xffffff}),yer.length), m=new THREE.Matrix4(), q=new THREE.Quaternion(), c=new THREE.Color();
-   yer.forEach(([x,z,w,d,h,a],i)=>{q.setFromAxisAngle(new THREE.Vector3(0,1,0),a); m.compose(new THREE.Vector3(x,h/2,z),q,new THREE.Vector3(w,h,d)); bm.setMatrixAt(i,m);
-     bm.setColorAt(i,c.setHSL(0.09+hsh(i,3)*0.04,0.18,0.62+hsh(i,4)*0.25));}); scene.add(bm);}
-  // 15 Temmuz Şehitler Köprüsü (kuzeydoğuda, uzak): iki kule, tabliye, ana kablolar
-  {const N=2650, E1=KIYI(N)-20, E2=KARSI(N)+20, mat=new THREE.MeshStandardMaterial({color:0xb9b6ad}), g=new THREE.Group();
-   const L=E2-E1; for(const e of [0,L]){for(const s of [-1,1]){const k=new THREE.Mesh(new THREE.BoxGeometry(5,165,5),mat); k.position.set(e,82.5,s*14); g.add(k);} const kb=new THREE.Mesh(new THREE.BoxGeometry(5,5,33),mat); kb.position.set(e,160,0); g.add(kb);}
-   const t=new THREE.Mesh(new THREE.BoxGeometry(L+400,4,33),mat); t.position.set(L/2,64,0); g.add(t);
-   const kp=[]; for(const s of [-1,1]){for(let i=0;i<=40;i++){const u=i/40,x=u*L,y=165-4*(165-70)*u*(1-u); kp.push(new THREE.Vector3(x,y,s*14));}}
-   const kl=new THREE.BufferGeometry().setFromPoints(kp.slice(0,41)), kl2=new THREE.BufferGeometry().setFromPoints(kp.slice(41));
-   g.add(new THREE.Line(kl,new THREE.LineBasicMaterial({color:0x777777}))); g.add(new THREE.Line(kl2,new THREE.LineBasicMaterial({color:0x777777})));
-   const [x,z]=P(E1,N); g.position.set(x,0,z); g.rotation.y=-Math.PI/4; scene.add(g);}
+/* ============ ÇEVRE (OpenStreetMap, cevre.json): gerçek binalar, saray, parklar, yollar, ağaçlar, kıyı ============
+   Veri: © OpenStreetMap katkıcıları (ODbL). Stat koordinatı; +x kuzeybatı (322°), +z kuzeydoğu. */
+const ST=(E,N)=>{const b=322.1*R,dE=E+12.5,dN=N-23.6;return [dE*Math.sin(b)+dN*Math.cos(b),dE*Math.sin(b+Math.PI/2)+dN*Math.cos(b+Math.PI/2)];};
+const tasM=new THREE.MeshStandardMaterial({color:0xeee9dd,roughness:0.8}), kubbeMat=new THREE.MeshStandardMaterial({color:0x8e9ea6,roughness:0.5,metalness:0.2}), koyuTas=new THREE.MeshStandardMaterial({color:0xcfc6b2,roughness:0.85});
+{ // zemin + stat meydanı + stat çevre yolu
+  const yer=new THREE.Mesh(new THREE.PlaneGeometry(20000,20000),new THREE.MeshStandardMaterial({color:0x8d8e86,roughness:1}));yer.rotation.x=-Math.PI/2;yer.position.y=-0.4;scene.add(yer);
+  const r=[];for(let i=0;i<=64;i++){const t=i/64*Math.PI*2,[x,z]=nokta(t,disKenar(t).d+DIS_EK+30);r.push([x,z]);}
+  const sh=new THREE.Shape(); r.forEach(([x,z],i)=>i?sh.lineTo(x,-z):sh.moveTo(x,-z)); const hl=new THREE.Path(); r.slice().reverse().forEach(([x,z],i)=>{const k=0.86; i?hl.lineTo(x*k,-z*k):hl.moveTo(x*k,-z*k);}); sh.holes.push(hl);
+  const yol=new THREE.Mesh(new THREE.ShapeGeometry(sh),new THREE.MeshStandardMaterial({color:0x44464b})); yol.rotation.x=-Math.PI/2; yol.position.y=-0.02; scene.add(yol);
+  const sh2=new THREE.Shape(); for(let i=0;i<=90;i++){const t=i/90*Math.PI*2,[x,z]=nokta(t,disKenar(t).d+DIS_EK+20); i?sh2.lineTo(x,-z):sh2.moveTo(x,-z);}
+  const md=new THREE.Mesh(new THREE.ShapeGeometry(sh2),new THREE.MeshStandardMaterial({color:0xcfccc2})); md.rotation.x=-Math.PI/2; md.position.y=-0.03; scene.add(md);
 }
-
+function duzCokgen(arr,olcek=0.1){const sh=new THREE.Shape(); for(let i=0;i<arr.length;i+=2){const x=arr[i]*olcek,z=arr[i+1]*olcek; i?sh.lineTo(x,-z):sh.moveTo(x,-z);} return new THREE.ShapeGeometry(sh);}
+function yatir(g,y){g.rotateX(-Math.PI/2); g.translate(0,y,0); return g;}
+const pencereDoku=dokuYap(128,128,(g,w,h)=>{g.fillStyle='#ffffff';g.fillRect(0,0,w,h);g.fillStyle='#6f7882';
+  for(const x of [14,74]) g.fillRect(x,30,40,58); g.fillStyle='#d9d9d9'; g.fillRect(0,118,w,10);});
+pencereDoku.wrapT=THREE.RepeatWrapping;
+function binaGeo(liste,yukseklikF,renkF){ // duvarlar (pencere dokulu) + çatılar
+  const pos=[],uv=[],col=[],c=new THREE.Color();
+  liste.forEach((b,bi)=>{const a=b[0],H=yukseklikF(b), n=a.length/2; renkF(c,bi,b);
+    const P=[]; for(let i=0;i<n;i++)P.push([a[2*i]*0.1,a[2*i+1]*0.1]);
+    for(let i=0;i<n;i++){const [x1,z1]=P[i],[x2,z2]=P[(i+1)%n],L=Math.hypot(x2-x1,z2-z1),u=Math.max(1,Math.round(L/4)),v=Math.max(1,Math.round(H/3.3));
+      pos.push(x1,0,z1,x2,0,z2,x2,H,z2, x1,0,z1,x2,H,z2,x1,H,z1); uv.push(0,0,u,0,u,v, 0,0,u,v,0,v); for(let k=0;k<6;k++)col.push(c.r,c.g,c.b);}
+    const tri=THREE.ShapeUtils.triangulateShape(P.map(p=>new THREE.Vector2(p[0],p[1])),[]);
+    for(const t of tri)for(const k of t){pos.push(P[k][0],H,P[k][1]); uv.push(0.5,0.97); col.push(c.r*0.72,c.g*0.72,c.b*0.72);} });
+  const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2)); g.setAttribute('color',new THREE.Float32BufferAttribute(col,3)); g.computeVertexNormals(); return g;}
+fetch('cevre.json').then(r=>r.json()).then(V=>{
+  // deniz + Asya yakası
+  const dg=yatir(duzCokgen(V.deniz),0.25); scene.add(new THREE.Mesh(dg,new THREE.MeshStandardMaterial({color:0x2a6f96,roughness:0.45,metalness:0,envMapIntensity:0.15})));
+  scene.add(new THREE.Mesh(yatir(duzCokgen(V.asya),0.2),new THREE.MeshStandardMaterial({color:0x7f8878,roughness:1})));
+  // yeşil alanlar
+  {const gs=[],gs2=[]; for(const [a,o] of V.yesil) (o?gs:gs2).push(yatir(duzCokgen(a),o?0.03:0.025));
+   if(gs.length) scene.add(new THREE.Mesh(mergeGeometries(gs),new THREE.MeshStandardMaterial({color:0x4f6e3a,roughness:1})));
+   if(gs2.length) scene.add(new THREE.Mesh(mergeGeometries(gs2),new THREE.MeshStandardMaterial({color:0x6f8f4f,roughness:1})));}
+  // yollar
+  {const pos=[]; for(const [a,w] of V.yol){for(let i=0;i+3<a.length;i+=2){const x1=a[i]*0.1,z1=a[i+1]*0.1,x2=a[i+2]*0.1,z2=a[i+3]*0.1,L=Math.hypot(x2-x1,z2-z1)||1,nx=-(z2-z1)/L*w/2,nz=(x2-x1)/L*w/2;
+     pos.push(x1+nx,0.045,z1+nz,x2+nx,0.045,z2+nz,x2-nx,0.045,z2-nz, x1+nx,0.045,z1+nz,x2-nx,0.045,z2-nz,x1-nx,0.045,z1-nz);}}
+   const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.computeVertexNormals();
+   scene.add(new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:0x3e4045,roughness:0.95,side:THREE.DoubleSide})));}
+  // binalar (tek parça) — Avrupa yakası gerçek; Asya yakası temsilî kutular
+  {const g=binaGeo(V.bina,b=>b[1],(c,i)=>c.setHSL(0.08+hsh(i,3)*0.05,0.12+hsh(i,5)*0.12,0.66+hsh(i,4)*0.22));
+   scene.add(new THREE.Mesh(g,new THREE.MeshStandardMaterial({map:pencereDoku,vertexColors:true,roughness:0.85,side:THREE.DoubleSide})));}
+  {const g=binaGeo(V.saray,b=>b[1],c=>c.set(0xf3eee2)); scene.add(new THREE.Mesh(g,new THREE.MeshStandardMaterial({map:sarayDoku,vertexColors:true,roughness:0.8,side:THREE.DoubleSide})));
+   for(const s of V.saray) if(s[2]){let x=0,z=0,n=s[0].length/2; for(let i=0;i<n;i++){x+=s[0][2*i]*0.1;z+=s[0][2*i+1]*0.1;} const k=new THREE.Mesh(new THREE.SphereGeometry(15,24,12,0,Math.PI*2,0,Math.PI/2),kubbeMat); k.position.set(x/n,s[1],z/n); scene.add(k);}}
+  {const asya=[];const ap=[];for(let i=0;i<V.asya.length;i+=2)ap.push([V.asya[i]*0.1,V.asya[i+1]*0.1]);
+   const icinde=(x,z)=>{let c=false;for(let i=0,j=ap.length-1;i<ap.length;j=i++){const [xi,zi]=ap[i],[xj,zj]=ap[j];if((zi>z)!==(zj>z)&&x<(xj-xi)*(z-zi)/(zj-zi)+xi)c=!c;}return c;};
+   let s=11; const rnd=()=>{s=(s*16807)%2147483647;return s/2147483647;};
+   for(let i=0;i<20000&&asya.length<1600;i++){const x=(rnd()-0.5)*9000,z=(rnd()-0.5)*9000; if(Math.hypot(x,z)>4200||!icinde(x,z))continue; asya.push([x,z,10+rnd()*14,10+rnd()*14,7+rnd()*16,rnd()*3]);}
+   const bm=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),new THREE.MeshStandardMaterial({color:0xffffff,roughness:0.9}),asya.length), m=new THREE.Matrix4(), q=new THREE.Quaternion(), c=new THREE.Color();
+   asya.forEach(([x,z,w,d,h,a],i)=>{q.setFromAxisAngle(new THREE.Vector3(0,1,0),a); m.compose(new THREE.Vector3(x,h/2,z),q,new THREE.Vector3(w,h,d)); bm.setMatrixAt(i,m); bm.setColorAt(i,c.setHSL(0.08+hsh(i,7)*0.05,0.15,0.62+hsh(i,8)*0.25));}); scene.add(bm);}
+  // ağaçlar
+  {const A=V.agac, ag=new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1,1),new THREE.MeshStandardMaterial({color:0xffffff,roughness:1}),A.length), m=new THREE.Matrix4(), c=new THREE.Color();
+   A.forEach(([x,z,h],i)=>{h*=0.1; m.makeScale(h*0.42,h*0.55,h*0.42); m.setPosition(x*0.1,h*0.6,z*0.1); ag.setMatrixAt(i,m); ag.setColorAt(i,c.setHSL(0.25+hsh(i,1)*0.07,0.35,0.2+hsh(i,2)*0.1));}); scene.add(ag);}
+  // Dolmabahçe (Bezmialem Valide Sultan) Camii — gerçek yerinde; minareler denize bakar
+  if(V.ozel.cami){const g=new THREE.Group(); const kutu=(w,h,d,x,y,z,m=tasM)=>{const b=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);b.position.set(x,y,z);g.add(b);};
+   kutu(26,16,26,0,8,0); kutu(30,2,30,0,16.5,0,koyuTas);
+   const kas=new THREE.Mesh(new THREE.CylinderGeometry(10,10.5,6,24),tasM); kas.position.y=20; g.add(kas);
+   const kub=new THREE.Mesh(new THREE.SphereGeometry(10.2,24,12,0,Math.PI*2,0,Math.PI/2),kubbeMat); kub.position.y=23; g.add(kub);
+   for(const [x,z] of [[11,11],[11,-11],[-11,11],[-11,-11]]){const k=new THREE.Mesh(new THREE.CylinderGeometry(1.6,1.6,6,10),tasM);k.position.set(x,19,z);g.add(k);}
+   kutu(14,10,26,-18,5,0);
+   for(const z of [-24,24]){const m=new THREE.Mesh(new THREE.CylinderGeometry(1.1,1.4,46,10),tasM); m.position.set(16,23,z); g.add(m);
+     const s2=new THREE.Mesh(new THREE.CylinderGeometry(1.9,1.9,1,10),koyuTas); s2.position.set(16,36,z); g.add(s2);
+     const kl=new THREE.Mesh(new THREE.ConeGeometry(1.2,7,10),kubbeMat); kl.position.set(16,49.5,z); g.add(kl);}
+   g.position.set(V.ozel.cami[0],0,V.ozel.cami[1]); g.rotation.y=2.9; scene.add(g);}
+  // Dolmabahçe Saat Kulesi
+  if(V.ozel.saatKulesi){const g=new THREE.Group(); let y=0; for(const [w,h] of [[7,6],[6,8],[5.2,7],[4.6,5]]){const b=new THREE.Mesh(new THREE.BoxGeometry(w,h,w),koyuTas); b.position.y=y+h/2; g.add(b); y+=h;
+     const c2=new THREE.Mesh(new THREE.BoxGeometry(w+0.8,0.6,w+0.8),tasM); c2.position.y=y; g.add(c2);}
+   const k=new THREE.Mesh(new THREE.SphereGeometry(2.2,12,8,0,Math.PI*2,0,Math.PI/2),kubbeMat); k.position.y=y+0.3; g.add(k);
+   g.position.set(V.ozel.saatKulesi[0],0,V.ozel.saatKulesi[1]); scene.add(g);}
+  renderer.shadowMap.needsUpdate=true; window.__CEVRE=true;
+}).catch(e=>{console.warn('çevre yüklenemedi',e); window.__CEVRE=true;});
+const sarayDoku=dokuYap(256,128,(g,w,h)=>{g.fillStyle='#f6f2e8';g.fillRect(0,0,w,h);g.fillStyle='#ddd5c3';g.fillRect(0,0,w,10);g.fillRect(0,h*0.5,w,6);
+  for(let x=8;x<w;x+=32){g.fillStyle='#8f989e';g.fillRect(x+6,18,14,34);g.fillRect(x+6,h*0.5+16,14,36);g.fillStyle='#e6dfcf';g.fillRect(x,0,5,h);}});
+sarayDoku.wrapT=THREE.RepeatWrapping;
+// 15 Temmuz Şehitler Köprüsü (Ortaköy–Beylerbeyi), uzakta
+{const [x1,z1]=ST(2682,914),[x2,z2]=ST(3606,472), L=Math.hypot(x2-x1,z2-z1), mat=new THREE.MeshStandardMaterial({color:0xb9b6ad,roughness:0.6}), g=new THREE.Group();
+ for(const e of [0,L]){for(const s of [-1,1]){const k=new THREE.Mesh(new THREE.BoxGeometry(5,165,5),mat); k.position.set(e,82.5,s*14); g.add(k);} const kb=new THREE.Mesh(new THREE.BoxGeometry(5,5,33),mat); kb.position.set(e,160,0); g.add(kb);}
+ const t=new THREE.Mesh(new THREE.BoxGeometry(L+500,4,33),mat); t.position.set(L/2,64,0); g.add(t);
+ for(const s of [-1,1]){const kp=[]; for(let i=0;i<=40;i++){const u=i/40; kp.push(new THREE.Vector3(u*L,165-4*(165-70)*u*(1-u),s*14));} g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(kp),new THREE.LineBasicMaterial({color:0x777777})));}
+ g.position.set(x1,0,z1); g.rotation.y=-Math.atan2(z2-z1,x2-x1); scene.add(g);}
 /* ============ dokun → bilet kartı ============ */
 const bilet=document.getElementById('bilet');
 let isaretli=-1; const cc=new THREE.Color();
@@ -469,11 +465,11 @@ const say={1:0,2:0},trSay={},blokSay={};for(const k of koltuklar){say[k.kat]++;c
 document.getElementById('kap').textContent=koltuklar.length.toLocaleString('tr-TR');
 document.getElementById('detay').textContent=`${Object.keys(blokSay).length} blok · alt ${say[1].toLocaleString('tr-TR')} · üst ${say[2].toLocaleString('tr-TR')}`;
 window.__BILGI={toplam:koltuklar.length,ham:hamSayi,alt:say[1],ust:say[2],tribun:trSay,blok:blokSay};
-const deniz=P(560,-260);
+const deniz=ST(650,-330);
 const NOKTA={
   'Genel':[[170,130,190],[0,8,0]],
   'Numaralı\'dan':[[0,24,-62],[0,10,30]], 'Kale arkası':[[-62,10,0],[30,12,0]], 'Köşeden':[[-50,26,-40],[20,12,20]],
-  'Çatı altı':[[0,2,-8],[0,38,30]], 'Boğaz\'dan':[[deniz[0],45,deniz[1]],[0,12,0]], 'Kuş bakışı':[[0,520,1],[0,0,0]],
+  'Çatı altı':[[0,2,-8],[0,38,30]], 'Boğaz\'dan':[[deniz[0],55,deniz[1]],[0,12,0]], 'Dolmabahçe':[[ST(250,-520)[0],120,ST(250,-520)[1]],[-120,0,-60]], 'Kuş bakışı':[[0,520,1],[0,0,0]],
 };
 const alt=document.getElementById('alt');
 for(const [k,[p,t]] of Object.entries(NOKTA)){const b=document.createElement('button');b.textContent=k;b.onclick=()=>{cam.position.set(...p);ctl.target.set(...t);};alt.appendChild(b);}
@@ -486,7 +482,7 @@ renderer.shadowMap.needsUpdate=true; setTimeout(()=>renderer.shadowMap.needsUpda
 function boyut(){const w=innerWidth,h=innerHeight;renderer.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix();}
 addEventListener('resize',boyut);boyut();
 let fz=0,fn=0;const fe=document.getElementById('fps');
-function dongu(t){ctl.update();renderer.render(scene,cam);fn++;if(t-fz>1000){fe.textContent=fn+' fps · v0.4 · '+KALITE;if(fn<28&&PR>1.0&&!url.has('kalite')){PR=Math.max(1,PR-0.25);renderer.setPixelRatio(PR);boyut();}fz=t;fn=0;}requestAnimationFrame(dongu);}
+function dongu(t){ctl.update();renderer.render(scene,cam);fn++;if(t-fz>1000){fe.textContent=fn+' fps · v0.5 · '+KALITE;if(fn<28&&PR>1.0&&!url.has('kalite')){PR=Math.max(1,PR-0.25);renderer.setPixelRatio(PR);boyut();}fz=t;fn=0;}requestAnimationFrame(dongu);}
 requestAnimationFrame(dongu);
 window.__HAZIR=true;
 </script>
