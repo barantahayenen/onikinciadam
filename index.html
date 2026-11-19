@@ -228,7 +228,7 @@ function koltukRengi(k,i){
     if(Math.abs(s)>y.gen/2) continue;
     const px=Math.floor((s/y.gen+0.5)*(y.W-1)), py=Math.floor((1-(k.r-y.r0+0.5)/(y.r1-y.r0+1))*(y.H-1));
     if(y.veri[(py*y.W+px)*4]<128) return y.renk==='siyah'?AYAR.renk.siyah:AYAR.renk.beyaz; }
-  if(k.kat===2||dilim(k.t).kose) return AYAR.renk.ustSiyah;   // üst kat ve alt kat köşeleri düz siyah (v0.14: rastgele gri yok)
+  if(k.kat===2) return AYAR.renk.ustSiyah;   // üst kat düz siyah; alt kat köşeleri de beyaz (v0.15, Baran)
   return AYAR.renk.altBeyaz;
 }
 const KG=Math.min(0.44,KOLTUK_ARA-0.045); // koltuk eni: aralarında ~4–5 cm boşluk
@@ -404,11 +404,11 @@ function halka(dIc,dDis,yAlt,yUst,mat,M=480){ // kapalı halka kutu (iç/dış y
   const g2=new THREE.BufferGeometry();g2.setAttribute('position',new THREE.Float32BufferAttribute(ic2,3));g2.setIndex(ii);g2.computeVertexNormals();
   scene.add(new THREE.Mesh(g2,new THREE.MeshStandardMaterial({color:0x3d4046,side:THREE.DoubleSide})));
 }
-/* ============ dev ekranlar (Doğu köşelerinde çatı altında) + arma (Doğu üst ortası, çatı boşluğunda) ============ */
+/* ============ dev ekranlar (kısa kenarların ortasında, kale arkası çatı altında — v0.15) + arma (Doğu üst ortası, çatı boşluğunda) ============ */
 const ekranDoku=dokuYap(512,288,(g,w,h)=>{g.fillStyle='#060606';g.fillRect(0,0,w,h);g.fillStyle='#fff';g.font='900 70px system-ui,Arial';g.textAlign='center';g.fillText('12. ADAM',w/2,h/2-6);
   g.font='700 30px system-ui,Arial';g.fillStyle='#bbb';g.fillText('BURASI SENİN KOLTUĞUN',w/2,h/2+50);},false);
 {const koyu=new THREE.MeshStandardMaterial({color:0x1a1a1a}), on=new THREE.MeshBasicMaterial({map:ekranDoku});
- for(const a of [45,135]){const t=a*R,[x,y,z]=catiNokta(t,0.18);
+ for(const a of [0,180]){const t=a*R,[x,y,z]=catiNokta(t,0.18);
   const e=new THREE.Mesh(new THREE.BoxGeometry(16,9,0.6),[koyu,koyu,koyu,koyu,on,koyu]); e.position.set(x,y-6.5,z); e.lookAt(0,y-12,0); scene.add(e);}
  new THREE.TextureLoader().load('arma.png',tx=>{tx.colorSpace=THREE.SRGBColorSpace; tx.anisotropy=8; const t=90*R, dk=disKenar(t), [x,z]=nokta(t,dk.d-0.6);
   const a=new THREE.Mesh(new THREE.PlaneGeometry(6.6,10.9),new THREE.MeshBasicMaterial({map:tx,transparent:true,alphaTest:0.3,side:THREE.DoubleSide}));
@@ -642,7 +642,7 @@ function dongu(t){ tusHareket(t);
     ctl.target.lerpVectors(ucusVeri.ft,ucusVeri.tt,e); cam.position.lerpVectors(ucusVeri.fc,ucusVeri.tc,e); cam.position.y+=Math.sin(Math.PI*e)*(ucusVeri.kavis||0); ctl.enabled=false; if(k>=1){ucusVeri=null; ctl.enabled=true;}}
   else ctl.update();
   if(ctl.target.y<ZEMIN_Y) ctl.target.y=ZEMIN_Y; if(cam.position.y<ZEMIN_Y+1.2) cam.position.y=ZEMIN_Y+1.2;
-  for(const f of window.__KARE)f(t);renderer.render(scene,cam);fn++;if(t-fz>1000){fe.textContent=fn+' fps · v0.14 · '+KALITE;if(fn<28&&PR>1.0&&!url.has('kalite')){PR=Math.max(1,PR-0.25);renderer.setPixelRatio(PR);boyut();}fz=t;fn=0;}requestAnimationFrame(dongu);}
+  for(const f of window.__KARE)f(t);renderer.render(scene,cam);fn++;if(t-fz>1000){fe.textContent=fn+' fps · v0.15 · '+KALITE;if(fn<28&&PR>1.0&&!url.has('kalite')){PR=Math.max(1,PR-0.25);renderer.setPixelRatio(PR);boyut();}fz=t;fn=0;}requestAnimationFrame(dongu);}
 requestAnimationFrame(dongu);
 function koltugaUc(i){const k=koltuklar[i],p=ic(k.t),d=sira(k.kat,k.r).d; const g=window.__statGrubu.position.y;
   const yon=new THREE.Vector3(-p.nx,0,-p.nz); const goz=new THREE.Vector3(k.x,k.y+g+1.25,k.z);
@@ -655,6 +655,6 @@ function koltugaYakin(i){ // koltuğu yakından, önden-yukarıdan göster (giyd
 window.__STAT={THREE,scene,statGrubu:window.__statGrubu,cam,ctl,KM,koltuklar,asilRenk,biletGoster,isaretle,dilim,koltugaUc,koltugaYakin,ucusGit,url,ic};
 window.__HAZIR=true;
 </script>
-<script type="module" src="uyelik.js?v=2"></script>
+<script type="module" src="uyelik.js?v=3"></script>
 </body>
 </html>

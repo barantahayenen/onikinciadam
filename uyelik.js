@@ -51,6 +51,10 @@ const css = `
 .u-toast{position:absolute;left:50%;top:70px;transform:translateX(-50%);background:#f5f5f2;color:#111;font:800 13px system-ui;padding:8px 14px;border-radius:10px;display:none;pointer-events:none}
 .u-isim{position:fixed;transform:translate(-50%,-100%);pointer-events:none;background:rgba(12,12,13,.82);color:#fff;font:700 11px system-ui;padding:2px 7px;border-radius:7px;white-space:nowrap;display:none;z-index:4;border-left:3px solid #20c35a}
 .u-isim.kapali{border-left-color:#777;color:#bbb}.u-isim.ben{background:#e30a17;border-left-color:#fff;font-weight:900}
+.u-balon{position:fixed;transform:translate(-50%,-100%);pointer-events:none;background:#fff;color:#111;font:700 12.5px/1.3 system-ui;padding:6px 10px;border-radius:12px;max-width:190px;width:max-content;text-align:left;display:none;z-index:5;box-shadow:0 3px 10px rgba(0,0,0,.45);overflow-wrap:anywhere}
+.u-balon span{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.u-balon:after{content:'';position:absolute;left:50%;bottom:-7px;margin-left:-7px;border:7px solid transparent;border-bottom:0;border-top-color:#fff}
+.u-balon.ben{background:#e30a17;color:#fff}.u-balon.ben:after{border-top-color:#e30a17}
 .u-emoji{position:fixed;transform:translate(-50%,-100%);pointer-events:none;font-size:26px;display:none;z-index:4;filter:drop-shadow(0 2px 3px #000)}
 .u-hareket{position:absolute;left:68px;bottom:62px;display:none;gap:5px;pointer-events:auto;flex-wrap:wrap;max-width:calc(100vw - 150px)}
 .u-hareket.ac{display:flex}.u-hareket button{padding:7px 9px!important;font-size:17px!important}
@@ -336,6 +340,25 @@ window.__KARE.push(t => {
     dunya(n).y += 2.0 + yas * 0.5; _p.project(S.cam); if (_p.z > 1) { o.el.style.display = 'none'; continue; }
     o.el.style.display = 'block'; o.el.style.left = ((_p.x + 1) / 2 * innerWidth) + 'px'; o.el.style.top = ((1 - _p.y) / 2 * innerHeight) + 'px'; o.el.style.opacity = String(Math.min(1, 3 - yas)); }
 });
+/* sohbet baloncuğu: mesaj yazanın kafasının üstünde birkaç saniye (en fazla 8 tane) */
+const balonlar = new Map(); // mesaj id → {n, el, t0, sure}
+const BALON_N = 8, BALON_UZAT = +(new URLSearchParams(location.search).get('balon') || 1); // ?balon=10: test için uzun süre
+let balonHazir = false; // ilk yüklenen eski mesajlar baloncuk açmaz
+function balonGoster(id, v) {
+  const n = +v.k; if (!n || !koltuk.has(n) || balonlar.has(id)) return;
+  for (const [bid, o] of balonlar) if (o.n === n) { o.el.remove(); balonlar.delete(bid); } // kişi başı tek balon
+  while (balonlar.size >= BALON_N) { const [bid, o] = balonlar.entries().next().value; o.el.remove(); balonlar.delete(bid); }
+  const el = document.createElement('div'); el.className = 'u-balon' + (n === benN ? ' ben' : ''); const sp = document.createElement('span'); sp.textContent = v.m; el.appendChild(sp); etiketKap.appendChild(el);
+  balonlar.set(id, {n, el, t0: null, sure: Math.min(9, 4 + v.m.length / 18) * BALON_UZAT});
+}
+function balonSil(id) { const o = balonlar.get(id); if (o) { o.el.remove(); balonlar.delete(id); } }
+window.__KARE.push(t => {
+  for (const [id, o] of balonlar) { if (o.t0 === null) o.t0 = t; const yas = (t - o.t0) / 1000; if (yas > o.sure || !koltuk.has(o.n)) { o.el.remove(); balonlar.delete(id); continue; }
+    dunya(o.n).y += (o.n === benN ? 2.0 : 1.45); const uz = _p.distanceTo(S.cam.position); _p.project(S.cam);
+    if (_p.z > 1 || Math.abs(_p.x) > 1.05 || Math.abs(_p.y) > 1.05 || uz > 220) { o.el.style.display = 'none'; continue; }
+    o.el.style.display = 'block'; o.el.style.left = ((_p.x + 1) / 2 * innerWidth) + 'px'; o.el.style.top = ((1 - _p.y) / 2 * innerHeight - 26) + 'px';
+    o.el.style.opacity = String(Math.min(1, (o.sure - yas) * 2, yas * 6)); o.el.style.zIndex = String(5 + Math.round(1000 - uz)); }
+});
 function emojiGoster(n, h) { const e = HAREKET[h]; if (!e) return; emojiler.get(n)?.el.remove(); const el = document.createElement('div'); el.className = 'u-emoji'; el.textContent = e[0]; etiketKap.appendChild(el); emojiler.set(n, {el, t0: performance.now()}); }
 
 /* ---------------- koltuk kartına sahip bilgisi ---------------- */
@@ -542,8 +565,9 @@ function mesajDiv(id, v) {
 }
 function mesajlariYenidenCiz() { kutu.innerHTML = ''; [...mesajlar.entries()].sort((a, b) => a[1].t - b[1].t).forEach(([id, v]) => kutu.appendChild(mesajDiv(id, v))); kaydir(); }
 const sRef = query(ref(db, 'sohbet'), orderByChild('t'), limitToLast(50));
-onChildAdded(sRef, s => { const v = s.val(); if (!v || !v.m) return; mesajlar.set(s.key, v); const alt = kutu.scrollHeight - kutu.scrollTop - kutu.clientHeight < 60; kutu.appendChild(mesajDiv(s.key, v)); while (kutu.children.length > 60) kutu.firstChild.remove(); if (alt) kaydir(); });
-onChildRemoved(sRef, s => { mesajlar.delete(s.key); $('m_' + s.key)?.remove(); });
+onChildAdded(sRef, s => { const v = s.val(); if (!v || !v.m) return; mesajlar.set(s.key, v); if (balonHazir) balonGoster(s.key, v); const alt = kutu.scrollHeight - kutu.scrollTop - kutu.clientHeight < 60; kutu.appendChild(mesajDiv(s.key, v)); while (kutu.children.length > 60) kutu.firstChild.remove(); if (alt) kaydir(); });
+get(sRef).catch(() => {}).finally(() => { setTimeout(() => { balonHazir = true; }, 300); });
+onChildRemoved(sRef, s => { mesajlar.delete(s.key); balonSil(s.key); $('m_' + s.key)?.remove(); });
 kutu.onclick = async e => {
   const t = e.target;
   if (t.dataset.n) { const i = nIndeks(+t.dataset.n); if (i !== undefined) S.koltugaUc(i); return; }
