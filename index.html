@@ -43,7 +43,7 @@ html,body{margin:0;height:100%;background:#8fb6e0;overflow:hidden;font-family:sy
 <div style="position:fixed;right:8px;bottom:58px;font:600 9px system-ui;color:#fff;opacity:.75;text-shadow:0 1px 2px #000;z-index:6;pointer-events:none">Harita verisi © OpenStreetMap katkıcıları</div>
 <div class="alt" id="alt"></div>
 <button id="kusBtn" class="kontrol" style="right:12px;bottom:118px;display:none">⤢ Kuş bakışı</button>
-<div id="yukAsa"><button id="geceBtn" class="kontrol" title="Gece modu">🌙</button><button id="yUp" class="kontrol">▲</button><button id="yDn" class="kontrol">▼</button></div>
+<div id="yukAsa"><button id="yUp" class="kontrol">▲</button><button id="yDn" class="kontrol">▼</button></div>
 <div id="ipucu"></div>
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
@@ -623,7 +623,7 @@ const ISCI=(()=>{
       const yon=dur?tribune+Math.sin(ts*0.6+i)*0.6:(asagi?sahaya:tribune);
       koy(i,p.x+p.nx*d,y+0.02,p.z+p.nz*d,yon,ts*6+i,dur?0:1); });
     for(const m of [G,K,A,B]) m.instanceMatrix.needsUpdate=true; }
-  return {adim};
+  return {adim, gor:a=>{ for(const m of [G,K,A,B]) m.visible=a; }};
 })();
 
 /* ============ v0.16: çim sulama — 8 dönen fıskiye, kavisli su, ıslanan çim (döngü: 40 sn açık, 50 sn kapalı) ============ */
@@ -652,7 +652,8 @@ const SULAMA=(()=>{ const SG=window.__statGrubu, NOK=[], NP=150, R=15, YUK=2.4, 
       for(let i=0;i<NP;i++){ const s=((i/NP)+ts*0.9+n.f)%1, a=yon+ys[i]*2, r=s*R*rs[i]*guc, h=0.2+4*YUK*s*(1-s)*guc;
         pos[k++]=n.x+Math.cos(a)*r; pos[k++]=guc>0.01?h:-5; pos[k++]=n.z+Math.sin(a)*r; } }
     geo.attributes.position.needsUpdate=true; su.visible=guc>0.01; }
-  return {adim};
+  const gor=a=>{ if(a) return; su.visible=false; for(const n of NOK){ n.bas.position.y=-0.2; n.islak.material.opacity=0; } islaklik=0; };
+  return {adim, gor};
 })();
 
 /* ============ v0.16: gece modu — koyu gök + yıldızlar, ay ışığı, çatıdan projektörler, şehir ışıkları ============ */
@@ -679,12 +680,25 @@ const GECE=(()=>{
     scene.environment=g?null:gunduzEnv; // gece gök yansıması yok (sonradan yüklenen şehir dahil her şeye uygulanır)
     for(const m of binalar()){ m.emissive.set(g?0x5a4426:0x000000); m.emissiveIntensity=g?0.45:1; }
     renderer.toneMappingExposure=g?0.5:0.5;
-    const b=document.getElementById('geceBtn'); if(b){ b.textContent=g?'☀️':'🌙'; b.title=g?'Gündüz':'Gece modu'; }
-    try{ localStorage.setItem('oa_gece',g?'1':'0'); }catch(_){}
   }
   return {ayarla, get acik(){return acik;}};
 })();
-window.__KARE_IC=[t=>ISCI.adim(t), t=>SULAMA.adim(t)];
+/* ============ v0.18: ortam (gündüz / gece / otomatik) ve stat efektleri yönetici panelinden gelir ============ */
+function gunesYuk(ms){ // İstanbul'da güneşin ufuktan yüksekliği (derece)
+  const R=Math.PI/180, n=ms/864e5+2440587.5-2451545, L=(280.46+0.9856474*n)%360, g=((357.528+0.9856003*n)%360)*R;
+  const lam=(L+1.915*Math.sin(g)+0.02*Math.sin(2*g))*R, eps=(23.439-4e-7*n)*R, dec=Math.asin(Math.sin(eps)*Math.sin(lam)), ra=Math.atan2(Math.cos(eps)*Math.sin(lam),Math.cos(lam));
+  const ha=((280.46061837+360.98564736629*n)%360+29.0)*R-ra, la=41.04*R;
+  return Math.asin(Math.sin(la)*Math.sin(dec)+Math.cos(la)*Math.cos(dec)*Math.cos(ha))/R; }
+const ORTAM={mod:'gunduz', z:null};
+function ortamUygula(){ let g=ORTAM.mod==='gece'||(ORTAM.mod==='otomatik'&&gunesYuk(Date.now())<-4);
+  if(url.has('gece')) g=url.get('gece')==='1'; // test: adresle zorla
+  if(g!==GECE.acik) GECE.ayarla(g); }
+window.__ORTAM=mod=>{ ORTAM.mod=(mod==='gece'||mod==='otomatik')?mod:'gunduz'; try{ localStorage.setItem('oa_ortam',ORTAM.mod); }catch(_){}
+  clearInterval(ORTAM.z); if(ORTAM.mod==='otomatik') ORTAM.z=setInterval(ortamUygula,60000); ortamUygula(); };
+const EFEKT={isci:true, sulama:true};
+window.__EFEKT=(ad,a)=>{ EFEKT[ad]=a!==false; };
+window.__GUNES=gunesYuk;
+window.__KARE_IC=[t=>{ ISCI.gor(EFEKT.isci); if(EFEKT.isci) ISCI.adim(t); }, t=>{ SULAMA.gor(EFEKT.sulama); if(EFEKT.sulama) SULAMA.adim(t); }];
 window.__GECE_YENI=()=>{ if(GECE.acik) GECE.ayarla(true); }; // şehir geç yüklenirse gece ayarını ona da uygula
 
 /* ============ bilgi + kameralar ============ */
@@ -775,7 +789,7 @@ function dongu(t){ tusHareket(t);
     ctl.target.lerpVectors(ucusVeri.ft,ucusVeri.tt,e); cam.position.lerpVectors(ucusVeri.fc,ucusVeri.tc,e); cam.position.y+=Math.sin(Math.PI*e)*(ucusVeri.kavis||0); cam.lookAt(ctl.target); ctl.enabled=false; if(k>=1){const son=ucusVeri.son; ucusVeri=null; ctl.enabled=true; if(son) son(); ctl.update();}}
   else ctl.update();
   if(ctl.target.y<ZEMIN_Y) ctl.target.y=ZEMIN_Y; if(cam.position.y<ZEMIN_Y+1.2) cam.position.y=ZEMIN_Y+1.2;
-  for(const f of window.__KARE_IC)f(t); for(const f of window.__KARE)f(t);renderer.render(scene,cam);fn++;if(t-fz>1000){fe.textContent=fn+' fps · v0.17 · '+KALITE;if(fn<28&&PR>1.0&&!url.has('kalite')){PR=Math.max(1,PR-0.25);renderer.setPixelRatio(PR);boyut();}fz=t;fn=0;}requestAnimationFrame(dongu);}
+  for(const f of window.__KARE_IC)f(t); for(const f of window.__KARE)f(t);renderer.render(scene,cam);fn++;if(t-fz>1000){fe.textContent=fn+' fps · v0.18 · '+KALITE;if(fn<28&&PR>1.0&&!url.has('kalite')){PR=Math.max(1,PR-0.25);renderer.setPixelRatio(PR);boyut();}fz=t;fn=0;}requestAnimationFrame(dongu);}
 requestAnimationFrame(dongu);
 function koltugaUc(i){const k=koltuklar[i],p=ic(k.t),d=sira(k.kat,k.r).d; const g=window.__statGrubu.position.y;
   const yon=new THREE.Vector3(-p.nx,0,-p.nz); const goz=new THREE.Vector3(k.x,k.y+g+1.25,k.z);
@@ -786,11 +800,10 @@ function koltugaYakin(i){ // koltuğu yakından, önden-yukarıdan göster (giyd
   const tt=kp.clone().add(new THREE.Vector3(0,dar?-1.0:-0.4,0)), tc=kp.clone().add(new THREE.Vector3(-p.nx*(dar?3.6:4.5),dar?2.7:1.6,-p.nz*(dar?3.6:4.5)));
   kusBtn.style.display='block'; ucusGit(tt,tc,1500,4);}
 window.__STAT={THREE,scene,statGrubu:window.__statGrubu,cam,ctl,KM,koltuklar,asilRenk,biletGoster,isaretle,dilim,koltugaUc,koltugaYakin,ucusGit,url,ic,gozumden,yerim,kameraEkle,kameraSil,get fp(){return !!fp;},get kameraOynadi(){return kameraOynadi;}};
-// gece modu düğmesi (tercih bu cihazda hatırlanır; ?gece=1 / ?gece=0 adresle zorlar)
-document.getElementById('geceBtn').onclick=()=>GECE.ayarla(!GECE.acik);
-{ let g=null; try{ g=localStorage.getItem('oa_gece'); }catch(_){} if(url.has('gece')) g=url.get('gece'); if(g==='1') GECE.ayarla(true); }
+// gündüz/gece: yönetici panelinden (ayar/ortam) gelir; gelene kadar son bilinen ayar (bu cihazda) kullanılır. ?gece=1/0 test için zorlar.
+{ let m='gunduz'; try{ m=localStorage.getItem('oa_ortam')||m; }catch(_){} window.__ORTAM(m); }
 window.__HAZIR=true;
 </script>
-<script type="module" src="uyelik.js?v=4"></script>
+<script type="module" src="uyelik.js?v=5"></script>
 </body>
 </html>

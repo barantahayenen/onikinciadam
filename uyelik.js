@@ -27,7 +27,7 @@ const css = `
 .u-ust{position:absolute;right:12px;top:34px;display:flex;flex-direction:column;align-items:flex-end;gap:6px;pointer-events:auto}
 .u-sayac{background:rgba(12,12,13,.86);border:1px solid #3a3a3a;border-radius:12px;padding:6px 10px;font:700 12px system-ui;color:#fff}
 .u-sayac i{display:inline-block;width:8px;height:8px;border-radius:50%;background:#20c35a;margin-right:5px;box-shadow:0 0 6px #20c35a}
-.u-modal{position:absolute;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;pointer-events:auto;padding:16px}
+.u-modal{position:absolute;inset:0;z-index:20;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;pointer-events:auto;padding:16px}
 .u-modal.ac{display:flex}
 .u-kutu{background:#121214;border:1px solid #333;border-radius:16px;padding:18px;max-width:360px;width:100%;color:#f5f5f2;max-height:86vh;overflow:auto}
 .u-kutu h3{margin:0 0 4px;font:900 19px system-ui}.u-kutu p{margin:6px 0 12px;font-size:13px;opacity:.85;line-height:1.4}
@@ -62,16 +62,44 @@ const css = `
 .u-dolap.ac{transform:none}.u-dolap h3{margin:0 0 4px;font:900 17px system-ui}.u-dolap h4{margin:10px 0 6px;font:800 11px system-ui;opacity:.75;letter-spacing:.6px}
 .u-secenek{display:flex;gap:7px;flex-wrap:wrap}.u-secenek button{min-width:42px;height:38px;padding:0 10px!important;border:2px solid #333!important}
 .u-secenek button.sec{border-color:#e30a17!important;box-shadow:0 0 0 2px #e30a17}
-@media (max-width:640px){.u-ust{top:62px}.u-dolap h4{margin:7px 0 4px}.u-secenek button{height:34px}}
+.u-duyuru{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);width:max-content;max-width:min(560px,calc(100vw - 300px));background:#e30a17;color:#fff;font:800 13px/1.35 system-ui;padding:7px 14px;border-radius:10px;box-shadow:0 3px 12px rgba(0,0,0,.45);display:none;text-align:center;overflow-wrap:anywhere;pointer-events:auto}
+.u-duyuru.ac{display:block}.u-duyuru b{margin-right:6px}
+.u-yon .u-kutu{max-width:420px}.u-yon h4{margin:16px 0 7px;font:800 11px system-ui;opacity:.7;letter-spacing:.6px}
+.u-yon .secim{display:flex;gap:6px;flex-wrap:wrap}.u-yon .secim button{flex:1;min-width:0;padding:9px 6px!important}
+.u-yon .secim button.sec{background:#e30a17!important;border-color:#e30a17!important}
+.u-yon .liste{display:flex;flex-direction:column;gap:6px;max-height:220px;overflow:auto}
+.u-yon .oge{background:#1d1d20;border:1px solid #333;border-radius:10px;padding:8px 10px;font-size:12.5px;line-height:1.35}
+.u-yon .oge .dug{display:flex;gap:5px;margin-top:6px;flex-wrap:wrap}.u-yon .oge .dug button{padding:5px 8px!important;font-size:11.5px!important}
+.u-yon .bos{font-size:12px;opacity:.55}
+.u-yon .sayi{display:flex;gap:8px}.u-yon .sayi div{flex:1;background:#1d1d20;border-radius:10px;padding:8px;text-align:center;font:600 11px system-ui;opacity:.9}.u-yon .sayi b{display:block;font:900 20px system-ui}
+@media (max-width:640px){.u-ust{top:62px}.u-duyuru{top:142px;bottom:auto;left:12px;right:12px;transform:none;width:auto;max-width:none;font-size:12.5px}.u-dolap h4{margin:7px 0 4px}.u-secenek button{height:34px}}
 `;
 document.head.insertAdjacentHTML('beforeend', `<style>${css}</style>`);
 const kok = document.getElementById('uyelik');
 kok.innerHTML = `
 <div class="u-ust">
   <div class="u-sayac" id="uSayac"><i></i><span id="uCanli">0</span> kişi şu an statta · <span id="uUye">0</span> üye</div>
-  <div style="display:flex;gap:6px"><button id="uGiydirBtn" style="display:none">👕</button><button id="uSohbetBtn">💬 Sohbet</button><button id="uGirisBtn" class="ana">Kayıt ol / Giriş</button></div>
+  <div style="display:flex;gap:6px"><button id="uYonBtn" style="display:none" title="Yönetim paneli">🛠</button><button id="uGiydirBtn" style="display:none">👕</button><button id="uSohbetBtn">💬 Sohbet</button><button id="uGirisBtn" class="ana">Kayıt ol / Giriş</button></div>
 </div>
+<div class="u-duyuru" id="uDuyuru"><b>📢</b><span id="uDuyuruYazi"></span></div>
 <div class="u-hareket" id="uHareket"></div>
+<div class="u-modal u-yon" id="uYon"><div class="u-kutu">
+  <h3>🛠 Yönetim paneli</h3><p>Buradaki ayarlar sitedeki herkese anında uygulanır.</p>
+  <div class="sayi"><div><b id="yUye">0</b>üye</div><div><b id="yCanli">0</b>şu an statta</div><div><b id="ySikSay">0</b>şikâyet</div></div>
+  <h4>GÜNDÜZ / GECE</h4>
+  <div class="secim" id="yOrtam"><button data-o="gunduz">☀️ Gündüz</button><button data-o="gece">🌙 Gece</button><button data-o="otomatik">🕒 Otomatik</button></div>
+  <div class="u-bilgi" style="padding:6px 0 0" id="yOrtamNot"></div>
+  <h4>DUYURU (ekranın üstünde herkese görünür)</h4>
+  <input id="yDuyuru" maxlength="140" placeholder="Örn: Maç 20.00'de, herkes statta!">
+  <div class="satir"><button id="yDuyuruYay" class="kirmizi">Yayınla</button><button id="yDuyuruKaldir">Kaldır</button></div>
+  <h4>SOHBET</h4>
+  <div class="secim"><button id="ySohbet"></button><button id="yTemizle">🧹 Son mesajları sil</button></div>
+  <h4>STAT</h4>
+  <div class="secim"><button id="yIsci"></button><button id="ySulama"></button></div>
+  <h4>ŞİKÂYETLER</h4><div class="liste" id="ySikayet"></div>
+  <h4>SUSTURULANLAR</h4><div class="liste" id="ySustur"></div>
+  <button id="yKapat" class="ana" style="width:100%;margin-top:16px">Kapat</button>
+</div></div>
 <div class="u-dolap" id="uDolap"><h3>👕 Karakterini giydir</h3><div style="font:600 12px system-ui;opacity:.75">Herkes seni böyle görür. Çevrimiçiyken renklisin, çıkınca gri.</div>
   <h4>FORMA</h4><div class="u-secenek" id="uS_f"></div><h4>TEN</h4><div class="u-secenek" id="uS_t"></div>
   <h4>SAÇ</h4><div class="u-secenek" id="uS_s"></div><h4>AKSESUAR</h4><div class="u-secenek" id="uS_x"></div>
@@ -128,7 +156,9 @@ const YASAK = ['amk','aq','amq','amına','amina','aminakoy','amcık','amcik','or
 function normal(s) { return s.toLocaleLowerCase('tr').replace(/[1!|]/g, 'i').replace(/3/g, 'e').replace(/0/g, 'o').replace(/@/g, 'a').replace(/\$/g, 's').replace(/[\s._*\-]+/g, ''); }
 function temizMi(s) {
   const n = normal(s), kelimeler = s.toLocaleLowerCase('tr').split(/[^a-zçğıöşü0-9.]+/);
+  const ham = s.toLocaleLowerCase('tr').replace(/\s+/g, '');
   for (const y of YASAK) {
+    if (/[./]/.test(y)) { if (ham.includes(y)) return false; continue; } // bağlantı kalıpları (.com, t.me…) noktasıyla aranır: "yönetici", "internet" engellenmesin
     const yn = normal(y);
     if (y.length <= 3 ? (kelimeler.some(k => normal(k) === yn) || n === yn || n.startsWith(yn + '') && n.length <= yn.length + 2) : n.includes(yn)) return false;
   }
@@ -272,6 +302,7 @@ const koltuk = new Map();   // n → {u,a}
 const uidN = new Map();     // uid → n
 const cevrimici = new Set();// uid
 let ben = null, benN = null, benAd = null, yonetici = false;
+const AYAR = {ortam: 'gunduz', duyuru: '', sohbetKapali: false, isci: true, sulama: true}; // yönetici ayarları (ayar/…)
 const figSira = [];         // figür sırası → n
 const nFig = new Map();     // n → figür sırası
 const SIFIR = new THREE.Vector3(0, 0, 0), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e3 = new THREE.Euler(), v3 = new THREE.Vector3(), s3 = new THREE.Vector3(1, 1, 1), renk = new THREE.Color(), renk2 = new THREE.Color();
@@ -380,7 +411,7 @@ const cRef = ref(db, 'cevrimici');
 onChildAdded(cRef, s => { cevrimici.add(s.key); const n = uidN.get(s.key); if (n) figGuncelle(n); noktalariCiz(); });
 onChildRemoved(cRef, s => { cevrimici.delete(s.key); const n = uidN.get(s.key); if (n) figGuncelle(n); noktalariCiz(); });
 const susturulan = new Set();
-onValue(ref(db, 'susturulan'), s => { susturulan.clear(); s.forEach(c => { susturulan.add(c.key); }); yazmaDurumu(); });
+onValue(ref(db, 'susturulan'), s => { susturulan.clear(); s.forEach(c => { susturulan.add(c.key); }); yazmaDurumu(); if (typeof yonetimCiz === 'function') yonetimCiz(); });
 
 
 /* ---------------- görünüm (giydirme) ve hareketler: herkes görür ---------------- */
@@ -497,7 +528,7 @@ $('uSifreUnut').onclick = async e => { e.preventDefault(); const em = $('uEposta
 onAuthStateChanged(auth, async u => {
   await varlikBitir();
   ben = u; benN = null; benAd = null; benYenile();
-  yonetici = !!(u && u.email === YONETICI_EPOSTA && u.emailVerified);
+  yonetici = !!(u && u.email === YONETICI_EPOSTA && u.emailVerified); yonetimDurum();
   if (!u) { $('uGirisBtn').textContent = 'Kayıt ol / Giriş'; yazmaDurumu(); mesajlariYenidenCiz(); return; }
   ac('uGiris', false);
   const s = await get(ref(db, 'uye/' + u.uid)).catch(() => null);
@@ -593,7 +624,7 @@ kutu.onclick = async e => {
 function yazmaDurumu() {
   const inp = $('uMesaj'), btn = $('uGonder');
   let not = '';
-  if (!ben) not = 'Yazmak için kayıt ol / giriş yap.'; else if (!benN) not = 'Yazmak için önce koltuğunu al.'; else if (susturulan.has(ben.uid)) not = 'Sohbette susturuldun.';
+  if (!ben) not = 'Yazmak için kayıt ol / giriş yap.'; else if (!benN) not = 'Yazmak için önce koltuğunu al.'; else if (susturulan.has(ben.uid)) not = 'Sohbette susturuldun.'; else if (AYAR.sohbetKapali && !yonetici) not = 'Sohbet şu an yönetici tarafından kapatıldı.';
   inp.disabled = btn.disabled = !!not; inp.placeholder = not || 'Mesaj yaz… (Enter)';
 }
 let sonGonder = 0;
@@ -609,6 +640,66 @@ async function gonder() {
 $('uGonder').onclick = gonder;
 $('uMesaj').addEventListener('keydown', e => { if (e.key === 'Enter') gonder(); });
 yazmaDurumu();
+
+/* ---------------- v0.18: ayarlar (herkes okur) + yönetim paneli (yalnız yönetici) ---------------- */
+const ORTAM_AD = {gunduz: 'Gündüz', gece: 'Gece', otomatik: 'Otomatik'};
+onValue(ref(db, 'ayar'), s => {
+  const v = s.val() || {};
+  AYAR.ortam = v.ortam || 'gunduz'; AYAR.duyuru = v.duyuru || ''; AYAR.sohbetKapali = v.sohbetKapali === true; AYAR.isci = v.isci !== false; AYAR.sulama = v.sulama !== false;
+  window.__ORTAM?.(AYAR.ortam); window.__EFEKT?.('isci', AYAR.isci); window.__EFEKT?.('sulama', AYAR.sulama);
+  $('uDuyuruYazi').textContent = AYAR.duyuru; ac('uDuyuru', !!AYAR.duyuru);
+  yazmaDurumu(); yonetimCiz();
+}, e => console.warn('ayar', e));
+function yonetimDurum() { $('uYonBtn').style.display = yonetici ? 'block' : 'none'; if (!yonetici) { ac('uYon', false); sikayetDinleBitir(); } }
+async function ayarYaz(alan, deger, mesaj) {
+  try { await set(ref(db, 'ayar/' + alan), deger); if (mesaj) toast(mesaj); }
+  catch (e) { console.warn('ayar yaz', e); toast('Kaydedilemedi (yetki?).'); }
+}
+function yonetimCiz() {
+  if (!$('uYon').classList.contains('ac')) return;
+  $('yUye').textContent = koltuk.size.toLocaleString('tr-TR'); $('yCanli').textContent = cevrimici.size.toLocaleString('tr-TR');
+  for (const b of $('yOrtam').children) b.classList.toggle('sec', b.dataset.o === AYAR.ortam);
+  const gy = window.__GUNES ? window.__GUNES(Date.now()) : 0;
+  $('yOrtamNot').textContent = AYAR.ortam === 'otomatik' ? `İstanbul saatine göre: güneş batınca gece, doğunca gündüz olur (şu an ${gy < -4 ? 'gece' : 'gündüz'}).` : 'Şu an herkes için: ' + ORTAM_AD[AYAR.ortam] + '.';
+  if (document.activeElement !== $('yDuyuru')) $('yDuyuru').value = AYAR.duyuru;
+  $('ySohbet').textContent = AYAR.sohbetKapali ? '🔒 Sohbet kapalı → aç' : '💬 Sohbet açık → kapat'; $('ySohbet').classList.toggle('sec', AYAR.sohbetKapali);
+  $('yIsci').textContent = '🦺 Görevliler: ' + (AYAR.isci ? 'açık' : 'kapalı'); $('yIsci').classList.toggle('sec', AYAR.isci);
+  $('ySulama').textContent = '💦 Çim sulama: ' + (AYAR.sulama ? 'açık' : 'kapalı'); $('ySulama').classList.toggle('sec', AYAR.sulama);
+  // şikâyetler
+  const sl = [...sikayetler.entries()].sort((a, b) => b[1].t - a[1].t);
+  $('ySikSay').textContent = sl.length;
+  $('ySikayet').innerHTML = sl.length ? sl.map(([id, v]) => { const m = v.mesaj || {}, kim = koltukAdi(v.kimden);
+    return `<div class="oge"><b>${kacis(m.a || '?')}</b>: ${kacis(m.m || '')}<div style="opacity:.55;font-size:10.5px;margin-top:3px">${new Date(v.t).toLocaleString('tr-TR', {day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'})} · şikâyet eden: ${kacis(kim)}${mesajlar.has(m.id) ? '' : ' · mesaj artık sohbette yok'}</div>
+      <div class="dug">${mesajlar.has(m.id) ? `<button data-ys="${kacis(id)}" data-m="${kacis(m.id || '')}">🗑 Mesajı sil</button>` : ''}${m.u && !susturulan.has(m.u) ? `<button data-yz="${kacis(id)}" data-u="${kacis(m.u)}">🔇 Sustur</button>` : ''}<button data-yk="${kacis(id)}">✓ Kapat</button></div></div>`; }).join('') : '<div class="bos">Şikâyet yok.</div>';
+  // susturulanlar
+  const su = [...susturulan];
+  $('ySustur').innerHTML = su.length ? su.map(u => `<div class="oge" style="display:flex;align-items:center;justify-content:space-between;gap:8px"><span>${kacis(koltukAdi(u))}</span><button data-ya="${kacis(u)}" style="padding:5px 8px!important;font-size:11.5px!important">Susturmayı kaldır</button></div>`).join('') : '<div class="bos">Susturulan yok.</div>';
+}
+function koltukAdi(uid) { for (const v of koltuk.values()) if (v.u === uid) return v.a; return 'koltuğu olmayan üye'; }
+const sikayetler = new Map(); let sikDinle = null;
+function sikayetDinleBasla() { if (sikDinle) return; sikDinle = onValue(ref(db, 'sikayet'), s => { sikayetler.clear(); s.forEach(c => { sikayetler.set(c.key, c.val()); }); yonetimCiz(); }, e => console.warn('şikâyet', e)); }
+function sikayetDinleBitir() { if (sikDinle) { sikDinle(); sikDinle = null; } sikayetler.clear(); }
+let yonZ = null;
+$('uYonBtn').onclick = () => { if (!yonetici) return; ac('uYon'); sikayetDinleBasla(); yonetimCiz(); clearInterval(yonZ); yonZ = setInterval(() => { if (!$('uYon').classList.contains('ac')) return clearInterval(yonZ); yonetimCiz(); }, 5000); };
+$('yKapat').onclick = () => ac('uYon', false);
+$('yOrtam').onclick = e => { const o = e.target.closest('button')?.dataset.o; if (o) ayarYaz('ortam', o, ORTAM_AD[o] + ' herkes için açıldı.'); };
+$('yDuyuruYay').onclick = () => { const d = $('yDuyuru').value.trim().replace(/\s+/g, ' ').slice(0, 140); if (!d) { toast('Önce duyuruyu yaz.'); return; } $('yDuyuru').blur(); ayarYaz('duyuru', d, 'Duyuru yayında.'); };
+$('yDuyuruKaldir').onclick = () => { $('yDuyuru').value = ''; ayarYaz('duyuru', null, 'Duyuru kaldırıldı.'); };
+$('ySohbet').onclick = () => ayarYaz('sohbetKapali', !AYAR.sohbetKapali, AYAR.sohbetKapali ? 'Sohbet açıldı.' : 'Sohbet kapatıldı.');
+$('yIsci').onclick = () => ayarYaz('isci', !AYAR.isci);
+$('ySulama').onclick = () => ayarYaz('sulama', !AYAR.sulama);
+$('yTemizle').onclick = async () => { const n = mesajlar.size; if (!n) { toast('Silinecek mesaj yok.'); return; } if (!confirm(`Sohbetteki son ${n} mesaj herkes için silinsin mi?`)) return;
+  const g = {}; for (const id of mesajlar.keys()) g['sohbet/' + id] = null;
+  try { await update(ref(db), g); toast(n + ' mesaj silindi.'); } catch (e) { console.warn(e); toast('Silinemedi.'); } };
+$('uYon').onclick = async e => { const b = e.target.closest('button'); if (!b) return; const d = b.dataset;
+  try {
+    if (d.ys) { await update(ref(db), {['sohbet/' + d.m]: null, ['sikayet/' + d.ys]: null}); toast('Mesaj silindi.'); }
+    else if (d.yz) { if (!confirm('Bu kişi susturulsun mu?')) return; await set(ref(db, 'susturulan/' + d.u), true); await remove(ref(db, 'sikayet/' + d.yz)); toast('Susturuldu.'); }
+    else if (d.yk) { await remove(ref(db, 'sikayet/' + d.yk)); }
+    else if (d.ya) { await remove(ref(db, 'susturulan/' + d.ya)); toast('Susturma kaldırıldı.'); }
+    else return;
+  } catch (er) { console.warn(er); toast('Yapılamadı (yetki?).'); }
+  yonetimCiz(); };
 
 window.__UYELIK = {db, auth, koltuk, cevrimici, nIndeks, indeksN, get ben() { return ben; }, get benN() { return benN; }, FIG};
 window.__UYELIK_HAZIR = true;
