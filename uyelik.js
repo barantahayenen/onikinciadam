@@ -319,9 +319,9 @@ const emojiler = new Map(); // n → {el, t0}
 let isimListe = [], isimZ = 0; const _p = new THREE.Vector3();
 const dunya = n => { const k = S.koltuklar[nIndeks(n)]; return _p.set(k.x, k.y + S.statGrubu.position.y, k.z); };
 function isimleriSec() {
-  isimListe = []; const cp = S.cam.position; if (cp.distanceTo(S.ctl.target) > 160) { if (benN) isimListe.push(benN); return; }
+  isimListe = []; const cp = S.cam.position; if (!S.fp && cp.distanceTo(S.ctl.target) > 160) { if (benN) isimListe.push(benN); return; }
   const aday = []; for (const n of koltuk.keys()) { const d = dunya(n).distanceToSquared(cp); if (d < 70 * 70) aday.push([d - (cevrimici.has(koltuk.get(n).u) ? 900 : 0), n]); }
-  aday.sort((a, b) => a[0] - b[0]); if (benN && !aday.some(a => a[1] === benN)) isimListe.push(benN);
+  aday.sort((a, b) => a[0] - b[0]); if (S.fp) { const i = aday.findIndex(a => a[1] === benN); if (i >= 0) aday.splice(i, 1); } else if (benN && !aday.some(a => a[1] === benN)) isimListe.push(benN);
   const tut = [];
   for (const [, n] of aday) { if (isimListe.length >= ISIM_N) break; dunya(n).y += 1.4; _p.project(S.cam); if (_p.z > 1 || Math.abs(_p.x) > 1 || Math.abs(_p.y) > 1) continue;
     const sx = (_p.x + 1) / 2 * innerWidth, sy = (1 - _p.y) / 2 * innerHeight; if (sy < 120 || sy > innerHeight - 90) continue;
@@ -353,7 +353,7 @@ function balonGoster(id, v) {
 }
 function balonSil(id) { const o = balonlar.get(id); if (o) { o.el.remove(); balonlar.delete(id); } }
 window.__KARE.push(t => {
-  for (const [id, o] of balonlar) { if (o.t0 === null) o.t0 = t; const yas = (t - o.t0) / 1000; if (yas > o.sure || !koltuk.has(o.n)) { o.el.remove(); balonlar.delete(id); continue; }
+  for (const [id, o] of balonlar) { if (o.t0 === null) o.t0 = t; if (S.fp && o.n === benN) { o.el.style.display = 'none'; continue; } const yas = (t - o.t0) / 1000; if (yas > o.sure || !koltuk.has(o.n)) { o.el.remove(); balonlar.delete(id); continue; }
     dunya(o.n).y += (o.n === benN ? 2.0 : 1.45); const uz = _p.distanceTo(S.cam.position); _p.project(S.cam);
     if (_p.z > 1 || Math.abs(_p.x) > 1.05 || Math.abs(_p.y) > 1.05 || uz > 220) { o.el.style.display = 'none'; continue; }
     o.el.style.display = 'block'; o.el.style.left = ((_p.x + 1) / 2 * innerWidth) + 'px'; o.el.style.top = ((1 - _p.y) / 2 * innerHeight - 26) + 'px';
@@ -400,7 +400,14 @@ function benYenile() {
   avatarKur(); benAvatarYerlestir();
   $('uGiydirBtn').style.display = benN ? 'block' : 'none';
   $('uHareket').classList.toggle('ac', !!benN);
+  // üyeye özel kameralar: kendi yerin (çevrendeki 10–15 kişiyle) ve kendi gözünden
+  if (benN) {
+    S.kameraEkle('kamGoz', '👀 Gözümden', () => S.gozumden(nIndeks(benN), gir => { benAvatar.visible = !gir && !!benN; }));
+    S.kameraEkle('kamYer', '🙋 Yerim', () => S.yerim(nIndeks(benN)));
+    if (!ilkYerim && !S.kameraOynadi) { ilkYerim = true; setTimeout(() => { if (!S.kameraOynadi && benN) S.yerim(nIndeks(benN)); }, 600); }
+  } else { S.kameraSil('kamYer'); S.kameraSil('kamGoz'); }
 }
+let ilkYerim = false; // giriş yapmış kullanıcı siteyi açınca kamera bir kez kendi yerine uçar
 // hareket çubuğu
 $('uHareket').innerHTML = Object.entries(HAREKET).filter(([h]) => h !== 'otur').map(([h, [e, ad]]) => `<button data-h="${h}" title="${ad}">${e}</button>`).join('');
 let sonHareket = 0;
@@ -445,16 +452,23 @@ document.getElementById('bilet').addEventListener('click', e => { const b = e.ta
     if (h) { const n = figSira[h.instanceId]; if (n) S.biletGoster(nIndeks(n)); } }); }
 
 /* ---------------- çevrimiçi durumu ---------------- */
-let varlikDinle = null;
-function varlikBaslat() {
-  if (varlikDinle) varlikDinle();
-  varlikDinle = onValue(ref(db, '.info/connected'), async s => {
-    if (!s.val() || !ben || !benN) return;
-    const r = ref(db, 'cevrimici/' + ben.uid);
-    try { await onDisconnect(r).remove(); await set(r, serverTimestamp()); } catch (e) { console.warn('varlık', e); }
-  });
+let varlikDinle = null, varlikKendi = null, bagli = false, varlikYaziyor = false;
+let varlikDeneme = 0, varlikZ = null;
+async function varlikYaz() { // "statta" kaydını (yeniden) yaz; bağlantı kopunca sunucu siler
+  if (!bagli || !ben || !benN || varlikYaziyor) return; varlikYaziyor = true; clearTimeout(varlikZ);
+  const r = ref(db, 'cevrimici/' + ben.uid);
+  try { await onDisconnect(r).remove(); await set(r, serverTimestamp()); varlikDeneme = 0; }
+  catch (e) { // v0.16 düzeltme: giriş bilgisi bağlantıya ulaşmadan yazınca reddediliyordu ve bir daha denenmiyordu → artan aralıkla yeniden dene
+    console.warn('varlık', e); varlikDeneme++; varlikZ = setTimeout(varlikYaz, Math.min(30000, 800 * 2 ** Math.min(varlikDeneme, 6))); }
+  varlikYaziyor = false;
 }
-async function varlikBitir() { if (varlikDinle) { varlikDinle(); varlikDinle = null; } if (ben) { try { await remove(ref(db, 'cevrimici/' + ben.uid)); } catch (e) {} } }
+function varlikBaslat() {
+  if (varlikDinle) varlikDinle(); if (varlikKendi) varlikKendi();
+  varlikDinle = onValue(ref(db, '.info/connected'), s => { bagli = !!s.val(); if (bagli) varlikYaz(); });
+  // v0.16 düzeltme: yenilenen/kapanan ESKİ sekmenin gecikmeli "çıktı" kaydı bu sekmenin kaydını silebiliyordu → silinirse hemen yeniden yaz
+  varlikKendi = onValue(ref(db, 'cevrimici/' + ben.uid), s => { if (!s.exists()) { clearTimeout(varlikZ); varlikZ = setTimeout(varlikYaz, 400); } });
+}
+async function varlikBitir() { clearTimeout(varlikZ); varlikDeneme = 0; if (varlikDinle) { varlikDinle(); varlikDinle = null; } if (varlikKendi) { varlikKendi(); varlikKendi = null; } bagli = false; if (ben) { try { await remove(ref(db, 'cevrimici/' + ben.uid)); } catch (e) {} } }
 
 /* ---------------- giriş ---------------- */
 $('uGirisBtn').onclick = () => { if (ben) { hesapAc(); } else ac('uGiris'); };
