@@ -32,6 +32,7 @@ html,body{margin:0;height:100%;background:#8fb6e0;overflow:hidden;font-family:sy
   <div class="kart bilet" id="bilet"></div>
 </div>
 <div id="fps"></div>
+<div id="uyelik"></div>
 <div style="position:fixed;right:8px;bottom:58px;font:600 9px system-ui;color:#fff;opacity:.75;text-shadow:0 1px 2px #000;z-index:6;pointer-events:none">Harita verisi © OpenStreetMap katkıcıları</div>
 <div class="alt" id="alt"></div>
 <script type="importmap">
@@ -521,7 +522,7 @@ let isaretli=-1; const cc=new THREE.Color();
 function isaretle(i){if(isaretli>=0)KM.setColorAt(isaretli,cc.setHex(asilRenk[isaretli])); isaretli=i; KM.setColorAt(i,cc.setHex(0xe30a17)); KM.instanceColor.needsUpdate=true;}
 function biletGoster(i){const k=koltuklar[i],dl=dilim(k.t);
   bilet.innerHTML=`<div class="ust">${dl.ad.toUpperCase()} TRİBÜNÜ · ${k.kat===1?'ALT':'ÜST'} KAT${dl.misafir&&k.kat===2?' · MİSAFİR':''}</div>
-  <div class="alanlar"><div><small>BLOK</small><b>${k.blok}</b></div><div><small>SIRA</small><b>${k.sira}</b></div><div><small>KOLTUK</small><b>${k.no}</b></div></div>`;
+  <div class="alanlar"><div><small>BLOK</small><b>${k.blok}</b></div><div><small>SIRA</small><b>${k.sira}</b></div><div><small>KOLTUK</small><b>${k.no}</b></div></div>${window.__BILET_EK?window.__BILET_EK(i):''}`;
   bilet.style.display='block'; isaretle(i);}
 const ray=new THREE.Raycaster(), fare=new THREE.Vector2(); let basla=null;
 cv.addEventListener('pointerdown',e=>basla=[e.clientX,e.clientY]);
@@ -552,9 +553,15 @@ renderer.shadowMap.needsUpdate=true; setTimeout(()=>renderer.shadowMap.needsUpda
 function boyut(){const w=innerWidth,h=innerHeight;renderer.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix();}
 addEventListener('resize',boyut);boyut();
 let fz=0,fn=0;const fe=document.getElementById('fps');
-function dongu(t){ctl.update();renderer.render(scene,cam);fn++;if(t-fz>1000){fe.textContent=fn+' fps · v0.11 · '+KALITE;if(fn<28&&PR>1.0&&!url.has('kalite')){PR=Math.max(1,PR-0.25);renderer.setPixelRatio(PR);boyut();}fz=t;fn=0;}requestAnimationFrame(dongu);}
+window.__KARE=[];
+function dongu(t){ctl.update();for(const f of window.__KARE)f(t);renderer.render(scene,cam);fn++;if(t-fz>1000){fe.textContent=fn+' fps · v0.12 · '+KALITE;if(fn<28&&PR>1.0&&!url.has('kalite')){PR=Math.max(1,PR-0.25);renderer.setPixelRatio(PR);boyut();}fz=t;fn=0;}requestAnimationFrame(dongu);}
 requestAnimationFrame(dongu);
+function koltugaUc(i){const k=koltuklar[i],p=ic(k.t),d=sira(k.kat,k.r).d; const g=window.__statGrubu.position.y;
+  const yon=new THREE.Vector3(-p.nx,0,-p.nz); const goz=new THREE.Vector3(k.x,k.y+g+1.25,k.z);
+  cam.position.copy(goz).addScaledVector(yon,-0.4); ctl.target.copy(goz).addScaledVector(yon,30).setY(g+2); ctl.update(); biletGoster(i);}
+window.__STAT={THREE,scene,statGrubu:window.__statGrubu,cam,ctl,KM,koltuklar,asilRenk,biletGoster,isaretle,dilim,koltugaUc,url};
 window.__HAZIR=true;
 </script>
+<script type="module" src="uyelik.js?v=1"></script>
 </body>
 </html>
