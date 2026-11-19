@@ -89,7 +89,7 @@ const AYAR={
     ...(url.get('sponsor')==='0'?[]:[{metin:'Tüpraş Stadyumu', kat:2, t:90, gen:92, r0:7, r1:17, renk:'beyaz', font:'italic 700', logo:true}]),
   ],
   renk:{altBeyaz:0xf0f0ec, altGri:0xd9d9d4, ustSiyah:0x1d1d1f, ustGri:0x2c2c2f, siyah:0x161616, beyaz:0xf2f2ee,
-        altMerdiven:0xb9b9b4, ustMerdiven:0x56575a, membran:0xece4d2, celik:0xe2e2de, gok:0x8fb6e0},
+        altMerdiven:0x8e8f8c, ustMerdiven:0x56575a, membran:0xece4d2, celik:0xe2e2de, gok:0x8fb6e0},
 };
 
 /* ============ sahne ============ */
@@ -164,28 +164,51 @@ function blokAdi(t,kat){const d=dilim(t); let a=derece(t); if(a<235)a+=360; cons
 /* ============ koltuklar ============ */
 const koltuklar=[];
 function hsh(a,b){let h=(a*374761393+b*668265263)>>>0; h=Math.imul(h^(h>>>13),1274126177)>>>0; return ((h^(h>>>16))>>>0)/4294967296;}
-const blokSinir={1:[],2:[]}; // merdiven/giriş yerleri (t)
+const blokSinir={1:[],2:[]}; // blok arası merdivenler (t)
+/* v0.14: her sıra kendi eğrisi üzerinde EŞİT aralıkla dizilir (köşede açılma, kenarda üst üste binme yok),
+   koltuklar bloğun ortasına simetrik yerleşir, boşluk yalnız blok arası merdivende ve giriş ağızlarında kalır. */
+const BLOK_T={1:[],2:[]};
+for(const kat of [1,2]) for(const d of AYAR.dilimler){ const l=kat===1?d.alt:d.ust;
+  const w=l.map(b=>b==='VIP'?1.6:b==='BASIN'?0.6:1), top=w.reduce((x,y)=>x+y,0);
+  const L0=Lt(d.t0*R),L1=Lt(d.t1*R); let span=L1-L0; if(span<0)span+=CEVRE; let acc=0;
+  for(let i=0;i<l.length;i++){ const ta=tL(L0+span*acc/top); acc+=w[i]; const tb=tL(L0+span*acc/top);
+    BLOK_T[kat].push({ad:l[i],ta,tb}); if(i>0) blokSinir[kat].push(ta); } }
+for(const kat of [1,2]) for(const d of AYAR.dilimler) blokSinir[kat].push(tL(Lt(d.t0*R)));
+const GIRIS={1:[21,25],2:[6,10]}; // vomitoryum kutusunun kapladığı sıralar
+const araliklar=[]; // {kat,r,blok,tTab,xz,L0,L1,m0,m1}
 for(const kat of [1,2]){
   const maxR=kat===1?ALT.satir:MAX_UST;
   for(let r=0;r<maxR;r++){
-    const {d,y}=sira(kat,r), n=Math.floor((CEVRE+2*Math.PI*d)/AYAR.koltukGen);
-    let onceki=null, j=0;
-    for(let i=0;i<n;i++){
-      const t=tL((i+0.5)/n*CEVRE);
-      if(kat===2&&r>=ustSatir(t)){onceki=null;continue;}
-      const b=blokAdi(t,kat);
-      if(b==='BASIN'){onceki=b;continue;}
-      if(b!==onceki){ const ilk=onceki===null; onceki=b; j=0; if(r===(kat===1?22:7)&&!ilk) blokSinir[kat].push(t); if(!ilk) continue; }
-      j++; if(j%AYAR.blokIciMerdiven===0) continue;
-      const p=ic(t);
-      koltuklar.push({x:p.x+p.nx*(d+0.4),y,z:p.z+p.nz*(d+0.4),ry:Math.atan2(-p.nx,-p.nz),kat,r,t,blok:b});
+    const {d,y}=sira(kat,r), D=d+0.4, N=NS;
+    const T=new Float64Array(N+1), Lr=new Float64Array(N+1); let px=0,pz=0;
+    for(let i=0;i<=N;i++){const t=i/N*Math.PI*2,p=ic(t),x=p.x+p.nx*D,z=p.z+p.nz*D; T[i]=t; Lr[i]=i?Lr[i-1]+Math.hypot(x-px,z-pz):0; px=x; pz=z;}
+    const Lof=t=>{const f=(((t/(2*Math.PI))%1)+1)%1*N,i=Math.floor(f);return Lr[i]+(Lr[Math.min(i+1,N)]-Lr[i])*(f-i);};
+    const giris=r>=GIRIS[kat][0]&&r<=GIRIS[kat][1];
+    for(const B of BLOK_T[kat]){ if(B.ad==='BASIN') continue;
+      let La=Lof(B.ta), Lb=Lof(B.tb); if(Lb<La) Lb+=Lr[N];
+      // üst katta sıra bu bloğun yalnız bir kısmında olabilir: geçerli alt aralıkları bul
+      const parca=[]; let bas=null; const ADIM=0.25;
+      for(let L=La;L<=Lb+1e-6;L+=ADIM){ const tt=tL0(L); const ok=kat===1||r<ustSatir(tt);
+        if(ok&&bas===null) bas=L; if((!ok||L+ADIM>Lb+1e-6)&&bas!==null){ parca.push([bas,ok?Math.min(L,Lb):L-ADIM,bas===La,ok]); bas=null; } }
+      for(const [p0,p1,solBlok,sagBlok] of parca){
+        const m0=solBlok?(giris?2.0:0.62):0.3, m1=sagBlok?(giris?2.0:0.62):0.3;
+        araliklar.push({kat,r,y,D,blok:B.ad,p0,p1,m0,m1,n:0,tL:tL0});
+      }
+      function tL0(L){ L=((L%Lr[N])+Lr[N])%Lr[N]; let lo=0,hi=N; while(hi-lo>1){const m=(lo+hi)>>1; if(Lr[m]<L)lo=m; else hi=m;} return T[lo]+(T[hi]-T[lo])*(L-Lr[lo])/((Lr[hi]-Lr[lo])||1); }
     }
   }
 }
+const sayKoltuk=s=>{let n=0; for(const a of araliklar){const u=a.p1-a.p0-a.m0-a.m1; if(u>=0) n+=Math.floor(u/s+1e-9)+1;} return n;};
+let KOLTUK_ARA=0.5; { let lo=0.40,hi=0.60; for(let k=0;k<50;k++){const m=(lo+hi)/2; sayKoltuk(m)>=AYAR.hedefKoltuk?lo=m:hi=m;} KOLTUK_ARA=lo; }
+for(const a of araliklar){const u=a.p1-a.p0-a.m0-a.m1; a.n=u>=0?Math.floor(u/KOLTUK_ARA+1e-9)+1:0;}
+{ let fazla=araliklar.reduce((x,a)=>x+a.n,0)-AYAR.hedefKoltuk; // artanı en arka sıraların uçlarından birer birer al (simetrik ortalanır)
+  const sirali=araliklar.filter(a=>a.n>1).sort((a,b)=>(b.kat-a.kat)||(b.r-a.r)||((b.p1-b.p0)-(a.p1-a.p0)));
+  for(let i=0;fazla>0&&i<sirali.length;i++){sirali[i].n--; fazla--;} }
+for(const a of araliklar){ if(!a.n) continue;
+  const u=a.p1-a.p0-a.m0-a.m1, bas=a.p0+a.m0+(u-(a.n-1)*KOLTUK_ARA)/2;
+  for(let i=0;i<a.n;i++){ const t=a.tL(bas+i*KOLTUK_ARA), p=ic(t);
+    koltuklar.push({x:p.x+p.nx*a.D,y:a.y,z:p.z+p.nz*a.D,ry:Math.atan2(-p.nx,-p.nz),kat:a.kat,r:a.r,t,blok:a.blok}); } }
 const hamSayi=koltuklar.length;
-{ const fark=koltuklar.length-AYAR.hedefKoltuk;
-  if(fark>0){const sil=new Set(koltuklar.map((k,i)=>({i,s:(k.kat===2?1000:0)+k.r*10+Math.abs(Math.sin(2*k.t))*5})).sort((a,b)=>b.s-a.s).slice(0,fark).map(a=>a.i));
-    const kalan=koltuklar.filter((_,i)=>!sil.has(i)); koltuklar.length=0; koltuklar.push(...kalan);} }
 {const g=new Map(), f=t=>{let x=derece(t);if(x<235)x+=360;return x;};
  koltuklar.forEach((k,i)=>{const key=k.blok+'|'+k.r; if(!g.has(key))g.set(key,[]); g.get(key).push(i);});
  for(const l of g.values()){ l.sort((a,b)=>f(koltuklar[a].t)-f(koltuklar[b].t)); l.forEach((idx,n)=>{koltuklar[idx].no=n+1; koltuklar[idx].sira=koltuklar[idx].r+1;}); }}
@@ -205,12 +228,23 @@ function koltukRengi(k,i){
     if(Math.abs(s)>y.gen/2) continue;
     const px=Math.floor((s/y.gen+0.5)*(y.W-1)), py=Math.floor((1-(k.r-y.r0+0.5)/(y.r1-y.r0+1))*(y.H-1));
     if(y.veri[(py*y.W+px)*4]<128) return y.renk==='siyah'?AYAR.renk.siyah:AYAR.renk.beyaz; }
-  if(k.kat===2) return x<0.18?AYAR.renk.ustGri:AYAR.renk.ustSiyah;
-  if(dilim(k.t).kose) return x<0.12?AYAR.renk.ustGri:AYAR.renk.ustSiyah;   // alt kat köşeleri siyah
-  return x<0.10?AYAR.renk.altGri:AYAR.renk.altBeyaz;
+  if(k.kat===2||dilim(k.t).kose) return AYAR.renk.ustSiyah;   // üst kat ve alt kat köşeleri düz siyah (v0.14: rastgele gri yok)
+  return AYAR.renk.altBeyaz;
 }
-const koltukGeo=(()=>{const a=new THREE.BoxGeometry(0.44,0.08,0.40);a.translate(0,0.42,0);const b=new THREE.BoxGeometry(0.44,0.42,0.07);b.translate(0,0.63,-0.19);return mergeGeometries([a,b]);})();
-const KM=new THREE.InstancedMesh(koltukGeo,new THREE.MeshStandardMaterial({color:0xffffff,roughness:0.45,metalness:0}),koltuklar.length);
+const KG=Math.min(0.44,KOLTUK_ARA-0.045); // koltuk eni: aralarında ~4–5 cm boşluk
+const koltukGeo=(()=>{const a=new THREE.BoxGeometry(KG,0.08,0.40);a.translate(0,0.42,0);const b=new THREE.BoxGeometry(KG,0.42,0.07);b.translate(0,0.63,-0.19);return mergeGeometries([a,b]);})();
+const koltukMat=new THREE.MeshStandardMaterial({color:0xffffff,roughness:0.45,metalness:0});
+// v0.14: koltuk kenarlarında ince koyu çizgi (yakında keskin, uzakta ortalamaya yumuşar: titreme yok)
+koltukMat.onBeforeCompile=sh=>{
+  sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nvarying float vLX;').replace('#include <begin_vertex>','#include <begin_vertex>\nvLX=position.x;');
+  sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nvarying float vLX;\nuniform float uYG;')
+    .replace('#include <color_fragment>',`#include <color_fragment>
+      { float fw=fwidth(vLX)+1e-5, ax=abs(vLX), kenar=uYG-0.028;
+        float cizgi=smoothstep(kenar-fw,kenar+fw,ax);
+        float uzak=clamp((fw-0.012)/0.03,0.0,1.0);
+        diffuseColor.rgb*=mix(mix(1.0,0.42,cizgi),0.88,uzak); }`);
+  sh.uniforms.uYG={value:KG/2};};
+const KM=new THREE.InstancedMesh(koltukGeo,koltukMat,koltuklar.length);
 const asilRenk=new Uint32Array(koltuklar.length);
 {const m=new THREE.Matrix4(),q=new THREE.Quaternion(),e=new THREE.Euler(),s=new THREE.Vector3(1,1,1),c=new THREE.Color(),v=new THREE.Vector3();
  koltuklar.forEach((k,i)=>{e.set(0,k.ry,0);q.setFromEuler(e);m.compose(v.set(k.x,k.y,k.z),q,s);KM.setMatrixAt(i,m);asilRenk[i]=koltukRengi(k,i);KM.setColorAt(i,c.setHex(asilRenk[i]));});}
@@ -608,7 +642,7 @@ function dongu(t){ tusHareket(t);
     ctl.target.lerpVectors(ucusVeri.ft,ucusVeri.tt,e); cam.position.lerpVectors(ucusVeri.fc,ucusVeri.tc,e); cam.position.y+=Math.sin(Math.PI*e)*(ucusVeri.kavis||0); ctl.enabled=false; if(k>=1){ucusVeri=null; ctl.enabled=true;}}
   else ctl.update();
   if(ctl.target.y<ZEMIN_Y) ctl.target.y=ZEMIN_Y; if(cam.position.y<ZEMIN_Y+1.2) cam.position.y=ZEMIN_Y+1.2;
-  for(const f of window.__KARE)f(t);renderer.render(scene,cam);fn++;if(t-fz>1000){fe.textContent=fn+' fps · v0.13 · '+KALITE;if(fn<28&&PR>1.0&&!url.has('kalite')){PR=Math.max(1,PR-0.25);renderer.setPixelRatio(PR);boyut();}fz=t;fn=0;}requestAnimationFrame(dongu);}
+  for(const f of window.__KARE)f(t);renderer.render(scene,cam);fn++;if(t-fz>1000){fe.textContent=fn+' fps · v0.14 · '+KALITE;if(fn<28&&PR>1.0&&!url.has('kalite')){PR=Math.max(1,PR-0.25);renderer.setPixelRatio(PR);boyut();}fz=t;fn=0;}requestAnimationFrame(dongu);}
 requestAnimationFrame(dongu);
 function koltugaUc(i){const k=koltuklar[i],p=ic(k.t),d=sira(k.kat,k.r).d; const g=window.__statGrubu.position.y;
   const yon=new THREE.Vector3(-p.nx,0,-p.nz); const goz=new THREE.Vector3(k.x,k.y+g+1.25,k.z);
@@ -621,6 +655,6 @@ function koltugaYakin(i){ // koltuğu yakından, önden-yukarıdan göster (giyd
 window.__STAT={THREE,scene,statGrubu:window.__statGrubu,cam,ctl,KM,koltuklar,asilRenk,biletGoster,isaretle,dilim,koltugaUc,koltugaYakin,ucusGit,url,ic};
 window.__HAZIR=true;
 </script>
-<script type="module" src="uyelik.js?v=1"></script>
+<script type="module" src="uyelik.js?v=2"></script>
 </body>
 </html>
