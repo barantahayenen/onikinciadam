@@ -49,15 +49,29 @@ const css = `
 .u-yaz input{flex:1;min-width:0;font:600 15px system-ui;padding:9px 10px;border-radius:10px;border:1px solid #444;background:#1d1d20;color:#fff}
 .u-bilgi{font:600 12px system-ui;color:#bbb;padding:6px 12px}
 .u-toast{position:absolute;left:50%;top:70px;transform:translateX(-50%);background:#f5f5f2;color:#111;font:800 13px system-ui;padding:8px 14px;border-radius:10px;display:none;pointer-events:none}
-@media (max-width:640px){.u-ust{top:62px}}
+.u-isim{position:fixed;transform:translate(-50%,-100%);pointer-events:none;background:rgba(12,12,13,.82);color:#fff;font:700 11px system-ui;padding:2px 7px;border-radius:7px;white-space:nowrap;display:none;z-index:4;border-left:3px solid #20c35a}
+.u-isim.kapali{border-left-color:#777;color:#bbb}.u-isim.ben{background:#e30a17;border-left-color:#fff;font-weight:900}
+.u-emoji{position:fixed;transform:translate(-50%,-100%);pointer-events:none;font-size:26px;display:none;z-index:4;filter:drop-shadow(0 2px 3px #000)}
+.u-hareket{position:absolute;left:68px;bottom:62px;display:none;gap:5px;pointer-events:auto;flex-wrap:wrap;max-width:calc(100vw - 150px)}
+.u-hareket.ac{display:flex}.u-hareket button{padding:7px 9px!important;font-size:17px!important}
+.u-dolap{position:absolute;left:0;right:0;bottom:0;background:rgba(18,18,20,.97);border-top:2px solid #e30a17;border-radius:16px 16px 0 0;padding:14px 14px 18px;transform:translateY(105%);transition:transform .25s;max-height:56vh;overflow:auto;pointer-events:auto;color:#fff}
+.u-dolap.ac{transform:none}.u-dolap h3{margin:0 0 4px;font:900 17px system-ui}.u-dolap h4{margin:10px 0 6px;font:800 11px system-ui;opacity:.75;letter-spacing:.6px}
+.u-secenek{display:flex;gap:7px;flex-wrap:wrap}.u-secenek button{min-width:42px;height:38px;padding:0 10px!important;border:2px solid #333!important}
+.u-secenek button.sec{border-color:#e30a17!important;box-shadow:0 0 0 2px #e30a17}
+@media (max-width:640px){.u-ust{top:62px}.u-dolap h4{margin:7px 0 4px}.u-secenek button{height:34px}}
 `;
 document.head.insertAdjacentHTML('beforeend', `<style>${css}</style>`);
 const kok = document.getElementById('uyelik');
 kok.innerHTML = `
 <div class="u-ust">
   <div class="u-sayac" id="uSayac"><i></i><span id="uCanli">0</span> kişi şu an statta · <span id="uUye">0</span> üye</div>
-  <div style="display:flex;gap:6px"><button id="uSohbetBtn">💬 Sohbet</button><button id="uGirisBtn" class="ana">Kayıt ol / Giriş</button></div>
+  <div style="display:flex;gap:6px"><button id="uGiydirBtn" style="display:none">👕</button><button id="uSohbetBtn">💬 Sohbet</button><button id="uGirisBtn" class="ana">Kayıt ol / Giriş</button></div>
 </div>
+<div class="u-hareket" id="uHareket"></div>
+<div class="u-dolap" id="uDolap"><h3>👕 Karakterini giydir</h3><div style="font:600 12px system-ui;opacity:.75">Herkes seni böyle görür. Çevrimiçiyken renklisin, çıkınca gri.</div>
+  <h4>FORMA</h4><div class="u-secenek" id="uS_f"></div><h4>TEN</h4><div class="u-secenek" id="uS_t"></div>
+  <h4>SAÇ</h4><div class="u-secenek" id="uS_s"></div><h4>AKSESUAR</h4><div class="u-secenek" id="uS_x"></div>
+  <div class="satir" style="display:flex;gap:8px;margin-top:12px"><button id="uDolapKapat" class="ana" style="flex:1">Tamam</button><button id="uKoltukDegis" style="flex:1">🪑 Koltuk değiştir</button></div></div>
 <div class="u-sohbet" id="uSohbet">
   <div class="u-sbas"><span>💬 Canlı sohbet</span><button id="uSohbetKapat" style="padding:4px 9px">✕</button></div>
   <div class="u-mesajlar" id="uMesajlar"></div>
@@ -141,82 +155,195 @@ const sira = S.koltuklar.map((k, i) => {
 const nIndeks = n => sira[n - 1];                       // koltuk no → sahnedeki koltuk
 const indeksN = new Int32Array(KOLTUK_SAY); sira.forEach((idx, j) => indeksN[idx] = j + 1);
 
-/* ---------------- taraftar figürleri (yalnız dolu koltuklar) ---------------- */
-const figGeo = (() => {
-  const govde = new THREE.CylinderGeometry(0.17, 0.2, 0.62, 7); govde.translate(0, 0.78, 0.02);
-  const bas = new THREE.SphereGeometry(0.13, 8, 6); bas.translate(0, 1.22, 0.02);
-  const g = new THREE.BufferGeometry(); const parca = [govde, bas];
-  const birles = (THREE.BufferGeometryUtils || null);
-  // basit birleştirme (aynı öznitelikler)
-  const pos = [], nor = [], idx = []; let o = 0;
-  for (const p of parca) { const q = p.index ? p.toNonIndexed() : p; pos.push(...q.attributes.position.array); nor.push(...q.attributes.normal.array); }
-  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
-  return g;
-})();
-const canliAtt = new THREE.InstancedBufferAttribute(new Float32Array(KOLTUK_SAY), 1);
-figGeo.setAttribute('aCanli', canliAtt);
-const figMat = new THREE.MeshStandardMaterial({color: 0xffffff, roughness: 0.7});
+/* ---------------- taraftar figürleri (5. Tribün karakteri; yalnız dolu koltuklar) ----------------
+   govde = forma + kollar (örnek rengi = forma), kafa = pantolon, eller, yüz, saç, gözler (köşe renkli; örnek rengi = ten).
+   Uzakta sade model (LOD). Çevrimiçi olan hafifçe sallanır (gölgelendirici), çevrimdışı gri. Kendi karakterin ayrıca detaylı çizilir. */
+const {mergeGeometries} = await import('three/addons/utils/BufferGeometryUtils.js');
+const _kb = (w, h, d, x, y, z, rx = 0) => { const g = new THREE.BoxGeometry(w, h, d); if (rx) g.rotateX(rx); return g.translate(x, y, z); };
+const _boya = (g, c) => { const n = g.attributes.position.count, a = new Float32Array(n * 3), k = new THREE.Color(c); for (let i = 0; i < n; i++) { a[i * 3] = k.r; a[i * 3 + 1] = k.g; a[i * 3 + 2] = k.b; } g.setAttribute('color', new THREE.BufferAttribute(a, 3)); return g; };
+const _bel = (g, alt = 0.84) => { const p = g.attributes.position; g.computeBoundingBox(); const b = g.boundingBox; for (let i = 0; i < p.count; i++) { const t = (p.getY(i) - b.min.y) / (b.max.y - b.min.y); p.setX(i, p.getX(i) * (alt + (1 - alt) * t)); } return g; };
+const YS = 0.21, PANT = '#2a2f3a', SAC = '#1d1611';
+const govdeG = mergeGeometries([_bel(_kb(0.36, 0.46, 0.22, 0, YS + 0.27, -0.05)), _kb(0.1, 0.36, 0.11, -0.235, YS + 0.29, 0.02, -0.55), _kb(0.1, 0.36, 0.11, 0.235, YS + 0.29, 0.02, -0.55)]);
+const kafaG = mergeGeometries([_boya(_kb(0.34, 0.14, 0.42, 0, YS + 0.07, 0.15), PANT), _boya(_kb(0.3, 0.4, 0.12, 0, YS - 0.13, 0.37), PANT),
+  _boya(_kb(0.09, 0.09, 0.1, -0.22, YS + 0.13, 0.2), '#ffffff'), _boya(_kb(0.09, 0.09, 0.1, 0.22, YS + 0.13, 0.2), '#ffffff'),
+  _boya(_kb(0.24, 0.27, 0.24, 0, YS + 0.66, -0.04), '#ffffff'), _boya(_kb(0.26, 0.08, 0.26, 0, YS + 0.81, -0.05), SAC), _boya(_kb(0.26, 0.15, 0.06, 0, YS + 0.72, -0.165), SAC),
+  _boya(_kb(0.045, 0.05, 0.02, -0.06, YS + 0.68, 0.085), '#15100c'), _boya(_kb(0.045, 0.05, 0.02, 0.06, YS + 0.68, 0.085), '#15100c')]);
+const govdeSadeG = _kb(0.38, 0.5, 0.28, 0, YS + 0.29, -0.03), kafaSadeG = _boya(_kb(0.25, 0.27, 0.25, 0, YS + 0.67, -0.04), '#ffffff');
+const canliAtt = new THREE.InstancedBufferAttribute(new Float32Array(KOLTUK_SAY), 1);   // 1 = çevrimiçi (sallanır)
+const ziplaAtt = new THREE.InstancedBufferAttribute(new Float32Array(KOLTUK_SAY).fill(-99), 1); // zıplama başlangıcı (sn)
+for (const g of [govdeG, kafaG, govdeSadeG, kafaSadeG]) { g.setAttribute('aCanli', canliAtt); g.setAttribute('aZipla', ziplaAtt); }
 const zaman = {value: 0};
-figMat.onBeforeCompile = sh => {
-  sh.uniforms.uZaman = zaman;
-  sh.vertexShader = 'attribute float aCanli;\nuniform float uZaman;\n' + sh.vertexShader.replace('#include <begin_vertex>',
-    '#include <begin_vertex>\n float faz = float(gl_InstanceID)*1.7;\n transformed.y += aCanli * 0.09 * abs(sin(uZaman*3.2 + faz));\n transformed.x += aCanli * 0.03 * sin(uZaman*1.6 + faz) * (position.y - 0.5);');
-};
-const FIG = new THREE.InstancedMesh(figGeo, figMat, KOLTUK_SAY); FIG.count = 0; FIG.frustumCulled = false;
-FIG.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-S.statGrubu.add(FIG);
-const nokta = new THREE.InstancedMesh(new THREE.SphereGeometry(0.11, 8, 6), new THREE.MeshBasicMaterial({color: 0x20e36a}), 4000); nokta.count = 0; nokta.frustumCulled = false;
+const hareketli = m => { m.onBeforeCompile = sh => { sh.uniforms.uZaman = zaman;
+  sh.vertexShader = 'attribute float aCanli;\nattribute float aZipla;\nuniform float uZaman;\n' + sh.vertexShader.replace('#include <begin_vertex>',
+    `#include <begin_vertex>
+     float faz = float(gl_InstanceID)*1.7;
+     transformed.x += aCanli * 0.035 * sin(uZaman*1.8 + faz) * max(position.y - 0.2, 0.0);
+     float zt = uZaman - aZipla; if (zt > 0.0 && zt < 1.6) transformed.y += 0.55 * abs(sin(zt*5.9)) * (1.0 - zt/1.6);`); }; return m; };
+const govdeMat = hareketli(new THREE.MeshStandardMaterial({roughness: 0.8}));
+const kafaMat = hareketli(new THREE.MeshStandardMaterial({roughness: 0.8, vertexColors: true}));
+const yap = g => { const m = new THREE.InstancedMesh(g, g === kafaG || g === kafaSadeG ? kafaMat : govdeMat, KOLTUK_SAY); m.count = 0; m.frustumCulled = false; m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); S.statGrubu.add(m); return m; };
+const GOVDE = yap(govdeG), KAFA = yap(kafaG), GOVDE_S = yap(govdeSadeG), KAFA_S = yap(kafaSadeG);
+GOVDE.setColorAt(0, new THREE.Color()); KAFA.setColorAt(0, new THREE.Color());
+GOVDE_S.instanceMatrix = GOVDE.instanceMatrix; KAFA_S.instanceMatrix = KAFA.instanceMatrix; GOVDE_S.instanceColor = GOVDE.instanceColor; KAFA_S.instanceColor = KAFA.instanceColor;
+const FIG = GOVDE; // geriye dönük
+window.__KARE.push(t => { zaman.value = t / 1000;
+  const uzak = S.cam.position.distanceTo(S.ctl.target) > 150;
+  GOVDE.visible = KAFA.visible = !uzak; GOVDE_S.visible = KAFA_S.visible = uzak; GOVDE_S.count = KAFA_S.count = GOVDE.count; });
+const nokta = new THREE.InstancedMesh(new THREE.SphereGeometry(0.1, 8, 6), new THREE.MeshBasicMaterial({color: 0x20e36a}), 4000); nokta.count = 0; nokta.frustumCulled = false;
 S.statGrubu.add(nokta);
-S.KM.castShadow = false; FIG.castShadow = false;
-window.__KARE.push(t => { zaman.value = t / 1000; });
+
+/* ---------------- dolap: forma, ten, saç, aksesuar (herkes görür: gorunum/{uid}) ---------------- */
+const DOLAP = {
+  f: [['siyah', 'Siyah', '#151517'], ['beyaz', 'Beyaz', '#f2f2ef'], ['cubuk', 'Çubuklu', '#f2f2ef'], ['kirmizi', 'Kırmızı', '#c8102e'], ['gri', 'Antrasit', '#4a4d52'], ['lacivert', 'Lacivert', '#1b2440']],
+  t: [['1', '', '#f0c8a0'], ['2', '', '#e0b08a'], ['3', '', '#c98f63'], ['4', '', '#a8714a'], ['5', '', '#7a4f32']],
+  s: [['kel', 'Kel', null], ['kisa', 'Kısa siyah', '#1b1410'], ['kahve', 'Kısa kahve', '#5a3720'], ['sari', 'Kısa sarı', '#d8b45a'], ['uzun', 'Uzun siyah', '#1b1410'], ['kizil', 'Uzun kızıl', '#7a3a1c']],
+  x: [['atki', 'Atkı', null], ['yok', 'Yok', null], ['bere', 'Bere', null], ['bayrak', 'Bayrak', null], ['kollar', 'Kollar havada', null]],
+};
+const renkOf = (tur, k) => (DOLAP[tur].find(o => o[0] === k) || DOLAP[tur][0])[2];
+const VARSAYILAN = {f: 'siyah', t: '2', s: 'kisa', x: 'atki'};
+const gorunum = new Map(); // uid → {f,t,s,x}
+const gorunumAl = uid => Object.assign({}, VARSAYILAN, gorunum.get(uid) || {});
+
+/* ---------------- kendi karakterin (detaylı, hareketli) ---------------- */
+const benAvatar = new THREE.Group(); benAvatar.visible = false; S.statGrubu.add(benAvatar);
+const parcalar = {}; // animasyon için: kolL, kolR, govde, kafa, bayrak
+const cubukDoku = (() => { const c = document.createElement('canvas'); c.width = 64; c.height = 64; const x = c.getContext('2d');
+  for (let i = 0; i < 8; i++) { x.fillStyle = i % 2 ? '#f2f2ef' : '#151517'; x.fillRect(i * 8, 0, 8, 64); } const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; })();
+const bayrakDoku = (() => { const c = document.createElement('canvas'); c.width = 128; c.height = 80; const x = c.getContext('2d');
+  for (let i = 0; i < 8; i++) { x.fillStyle = i % 2 ? '#f2f2ef' : '#151517'; x.fillRect(i * 16, 0, 16, 80); }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  const a = new Image(); a.onload = () => { x.drawImage(a, 64 - 22, 40 - 36, 44, 72); t.needsUpdate = true; }; a.src = 'arma.png'; return t; })();
+function avatarKur() {
+  benAvatar.clear(); for (const k in parcalar) delete parcalar[k];
+  const G = gorunumAl(ben?.uid), forma = renkOf('f', G.f), ten = renkOf('t', G.t), sac = renkOf('s', G.s);
+  const mat = c => new THREE.MeshStandardMaterial({color: c, roughness: 0.75});
+  const formaMat = G.f === 'cubuk' ? new THREE.MeshStandardMaterial({map: cubukDoku, roughness: 0.75}) : mat(forma);
+  const kutu = (w, h, d, m, x, y, z, ust = benAvatar) => { const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), typeof m === 'string' ? mat(m) : m); o.position.set(x, y, z); ust.add(o); return o; };
+  const govde = new THREE.Group(); benAvatar.add(govde); parcalar.govde = govde;
+  kutu(0.34, 0.14, 0.42, PANT, 0, YS + 0.07, 0.15, govde); kutu(0.3, 0.4, 0.12, PANT, 0, YS - 0.13, 0.37, govde);    // bacaklar
+  kutu(0.11, 0.08, 0.2, '#111', -0.08, YS - 0.32, 0.42, govde); kutu(0.11, 0.08, 0.2, '#111', 0.08, YS - 0.32, 0.42, govde); // ayakkabılar
+  kutu(0.38, 0.48, 0.24, formaMat, 0, YS + 0.37, -0.04, govde);                                                     // forma
+  if (G.f !== 'cubuk') kutu(0.39, 0.06, 0.25, G.f === 'siyah' ? '#f2f2ef' : '#151517', 0, YS + 0.5, -0.04, govde); // göğüs şeridi
+  const kafa = new THREE.Group(); kafa.position.set(0, YS + 0.68, -0.04); govde.add(kafa); parcalar.kafa = kafa;
+  kutu(0.26, 0.28, 0.26, ten, 0, 0, 0, kafa); kutu(0.045, 0.05, 0.02, '#15100c', -0.06, 0.02, 0.131, kafa); kutu(0.045, 0.05, 0.02, '#15100c', 0.06, 0.02, 0.131, kafa);
+  kutu(0.08, 0.02, 0.02, '#8a3b30', 0, -0.07, 0.131, kafa);                                                       // ağız
+  if (sac) { kutu(0.28, 0.08, 0.28, sac, 0, 0.15, -0.01, kafa); if (G.s === 'uzun' || G.s === 'kizil') kutu(0.28, 0.32, 0.07, sac, 0, -0.02, -0.15, kafa); else kutu(0.28, 0.14, 0.06, sac, 0, 0.07, -0.13, kafa); }
+  if (G.x === 'bere') { kutu(0.29, 0.13, 0.29, '#151517', 0, 0.17, 0, kafa); kutu(0.3, 0.05, 0.3, '#f2f2ef', 0, 0.11, 0, kafa); kutu(0.09, 0.09, 0.09, '#f2f2ef', 0, 0.28, 0, kafa); }
+  if (G.x === 'atki') { kutu(0.36, 0.09, 0.3, '#151517', 0, YS + 0.6, -0.03, govde); kutu(0.1, 0.32, 0.04, '#f2f2ef', 0.1, YS + 0.4, 0.1, govde); kutu(0.1, 0.08, 0.05, '#151517', 0.1, YS + 0.22, 0.1, govde); }
+  for (const sx of [-1, 1]) { // kollar: omuzdan döner
+    const kol = new THREE.Group(); kol.position.set(sx * 0.25, YS + 0.55, -0.02); govde.add(kol);
+    kutu(0.11, 0.34, 0.12, formaMat, 0, -0.16, 0, kol); kutu(0.1, 0.1, 0.1, ten, 0, -0.36, 0, kol);
+    kol.rotation.x = -0.55; parcalar[sx < 0 ? 'kolL' : 'kolR'] = kol; }
+  if (G.x === 'bayrak') { const sap = new THREE.Group(); sap.position.set(0, -0.36, 0); parcalar.kolR.add(sap);
+    kutu(0.03, 1.5, 0.03, '#2a2f40', 0, 0.7, 0, sap);
+    const b = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.56, 8, 1), new THREE.MeshStandardMaterial({map: bayrakDoku, side: THREE.DoubleSide, roughness: 0.8})); b.position.set(0.47, 1.18, 0); sap.add(b); parcalar.bayrak = b; }
+  { const isik = new THREE.PointLight(0xfff1d6, 6, 6, 1.6); isik.position.set(0, 1.6, 1.4); benAvatar.add(isik); }
+}
+function benAvatarYerlestir() {
+  benAvatar.visible = !!benN;
+  if (!benN) return; const k = S.koltuklar[nIndeks(benN)];
+  benAvatar.position.set(k.x, k.y + 0.25, k.z); benAvatar.rotation.set(0, k.ry, 0);
+}
+// hareketler (kendi karakterin) — süre sn
+let hareket = null; const HAREKET = {selam: ['👋', 'El salla'], alkis: ['👏', 'Alkış'], zipla: ['🦘', 'Zıpla'], gol: ['🙌', 'Gol!'], atki: ['🧣', 'Atkı salla'], otur: ['🪑', 'Otur']};
+function hareketBaslat(h) { hareket = {h, t0: performance.now() / 1000}; }
+window.__KARE.push(t => {
+  if (!benAvatar.visible) return; const s = t / 1000, P = parcalar; if (!P.kolL) return;
+  const G = gorunumAl(ben?.uid), varsayilanKol = G.x === 'kollar' ? -2.6 : -0.55;
+  let kL = varsayilanKol, kR = G.x === 'bayrak' ? -2.4 : varsayilanKol, zL = 0, zR = 0, y = 0, egim = 0;
+  if (hareket) { const d = s - hareket.t0, h = hareket.h;
+    if (d > 3.2) hareket = null;
+    else if (h === 'selam') { kR = -2.7; zR = -0.35 + 0.45 * Math.sin(d * 11); }
+    else if (h === 'alkis') { kL = kR = -1.25; zL = 0.55 + 0.35 * Math.sin(d * 18); zR = -zL; }
+    else if (h === 'zipla') { y = 0.55 * Math.abs(Math.sin(d * 5.9)) * Math.max(0, 1 - d / 3.2); kL = kR = -2.5; }
+    else if (h === 'gol') { kL = kR = -2.9; zL = 0.35; zR = -0.35; y = 0.35 * Math.abs(Math.sin(d * 4)); egim = -0.15; }
+    else if (h === 'atki') { kL = kR = -2.75; zL = 0.25 + 0.3 * Math.sin(d * 9); zR = -0.25 + 0.3 * Math.sin(d * 9); } }
+  else { y = 0.02 * Math.sin(s * 2.1); }
+  P.kolL.rotation.x = kL; P.kolR.rotation.x = kR; P.kolL.rotation.z = zL; P.kolR.rotation.z = zR; P.govde.position.y = y; P.govde.rotation.x = egim;
+  if (P.bayrak) { const pa = P.bayrak.geometry.attributes.position; for (let j = 0; j < pa.count; j++) { const x = pa.getX(j); pa.setZ(j, Math.sin(s * 5.5 + x * 4) * 0.07 * (x + 0.45)); } pa.needsUpdate = true; }
+});
 
 /* ---------------- durum ---------------- */
 const koltuk = new Map();   // n → {u,a}
 const uidN = new Map();     // uid → n
 const cevrimici = new Set();// uid
 let ben = null, benN = null, benAd = null, yonetici = false;
-const figSira = [];         // FIG içindeki sıra → n
-const nFig = new Map();     // n → FIG sırası
-const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e3 = new THREE.Euler(), v3 = new THREE.Vector3(), s3 = new THREE.Vector3(1, 1, 1), renk = new THREE.Color();
-const FORMA = [0xf2f2ef, 0x1a1a1c, 0xf2f2ef, 0x1a1a1c, 0xd8d8d4];
-function figRengi(n, canli) {
-  if (n === benN) return renk.setHex(0xe30a17);
-  if (!canli) return renk.setHex(0x6b6b6b);
-  return renk.setHex(FORMA[n % FORMA.length]);
+const figSira = [];         // figür sırası → n
+const nFig = new Map();     // n → figür sırası
+const SIFIR = new THREE.Vector3(0, 0, 0), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e3 = new THREE.Euler(), v3 = new THREE.Vector3(), s3 = new THREE.Vector3(1, 1, 1), renk = new THREE.Color(), renk2 = new THREE.Color();
+function figMatris(n, j) {
+  const k = S.koltuklar[nIndeks(n)], gizli = n === benN;
+  e3.set(0, k.ry, 0); q.setFromEuler(e3); m4.compose(v3.set(k.x, k.y + 0.25, k.z), q, gizli ? SIFIR : s3);
+  GOVDE.setMatrixAt(j, m4); KAFA.setMatrixAt(j, m4);
 }
 function figEkle(n) {
-  if (nFig.has(n)) return; const i = nIndeks(n); if (i === undefined) return; const k = S.koltuklar[i];
-  const j = FIG.count; FIG.count++; figSira[j] = n; nFig.set(n, j);
-  e3.set(0, k.ry, 0); q.setFromEuler(e3); m4.compose(v3.set(k.x, k.y, k.z), q, s3); FIG.setMatrixAt(j, m4);
-  figGuncelle(n);
-  FIG.instanceMatrix.needsUpdate = true;
+  if (nFig.has(n)) return; if (nIndeks(n) === undefined) return;
+  const j = GOVDE.count; GOVDE.count++; KAFA.count++; figSira[j] = n; nFig.set(n, j);
+  figMatris(n, j); figGuncelle(n); GOVDE.instanceMatrix.needsUpdate = KAFA.instanceMatrix.needsUpdate = true;
 }
 function figSil(n) {
-  const j = nFig.get(n); if (j === undefined) return; const son = FIG.count - 1, sn = figSira[son];
-  if (j !== son) { FIG.getMatrixAt(son, m4); FIG.setMatrixAt(j, m4); FIG.getColorAt(son, renk); FIG.setColorAt(j, renk); canliAtt.array[j] = canliAtt.array[son]; figSira[j] = sn; nFig.set(sn, j); }
-  nFig.delete(n); FIG.count--; FIG.instanceMatrix.needsUpdate = true; if (FIG.instanceColor) FIG.instanceColor.needsUpdate = true; canliAtt.needsUpdate = true;
+  const j = nFig.get(n); if (j === undefined) return; const son = GOVDE.count - 1, sn = figSira[son];
+  if (j !== son) { for (const M of [GOVDE, KAFA]) { M.getMatrixAt(son, m4); M.setMatrixAt(j, m4); M.getColorAt(son, renk); M.setColorAt(j, renk); }
+    canliAtt.array[j] = canliAtt.array[son]; ziplaAtt.array[j] = ziplaAtt.array[son]; figSira[j] = sn; nFig.set(sn, j); }
+  nFig.delete(n); GOVDE.count--; KAFA.count--;
+  GOVDE.instanceMatrix.needsUpdate = KAFA.instanceMatrix.needsUpdate = true; GOVDE.instanceColor.needsUpdate = KAFA.instanceColor.needsUpdate = true; canliAtt.needsUpdate = ziplaAtt.needsUpdate = true;
 }
 function figGuncelle(n) {
   const j = nFig.get(n); if (j === undefined) return; const kk = koltuk.get(n); const canli = !!(kk && cevrimici.has(kk.u));
-  FIG.setColorAt(j, figRengi(n, canli)); canliAtt.array[j] = canli ? 1 : 0;
-  FIG.instanceColor.needsUpdate = true; canliAtt.needsUpdate = true;
+  const G = gorunumAl(kk?.u);
+  if (canli) { renk.set(renkOf('f', G.f)); renk2.set(renkOf('t', G.t)); } else { renk.set(0x5d5f63); renk2.set(0x8b8b8b); }
+  GOVDE.setColorAt(j, renk); KAFA.setColorAt(j, renk2); canliAtt.array[j] = canli ? 1 : 0;
+  GOVDE.instanceColor.needsUpdate = KAFA.instanceColor.needsUpdate = true; canliAtt.needsUpdate = true;
 }
+function ziplat(n) { const j = nFig.get(n); if (j === undefined) return; ziplaAtt.array[j] = zaman.value; ziplaAtt.needsUpdate = true; }
 let noktaZ = null;
 function noktalariCiz() { // çevrimiçi olanların başında yeşil nokta
   clearTimeout(noktaZ); noktaZ = setTimeout(() => {
     let c = 0;
     for (const uid of cevrimici) { const n = uidN.get(uid); if (!n || c >= 4000) continue; const k = S.koltuklar[nIndeks(n)];
-      m4.makeTranslation(k.x, k.y + 1.62, k.z); nokta.setMatrixAt(c++, m4); }
+      m4.makeTranslation(k.x, k.y + 1.55, k.z); nokta.setMatrixAt(c++, m4); }
     nokta.count = c; nokta.instanceMatrix.needsUpdate = true;
     $('uCanli').textContent = cevrimici.size.toLocaleString('tr-TR');
   }, 120);
 }
 function sayaclar() { $('uUye').textContent = koltuk.size.toLocaleString('tr-TR'); }
 
+/* ---------------- isim ve hareket etiketleri (yakındakiler) ---------------- */
+const ISIM_N = 14, isimEl = [], etiketKap = document.createElement('div'); etiketKap.id = 'uIsimler'; document.body.appendChild(etiketKap);
+for (let j = 0; j < ISIM_N; j++) { const d = document.createElement('div'); d.className = 'u-isim'; etiketKap.appendChild(d); isimEl.push(d); }
+const emojiler = new Map(); // n → {el, t0}
+let isimListe = [], isimZ = 0; const _p = new THREE.Vector3();
+const dunya = n => { const k = S.koltuklar[nIndeks(n)]; return _p.set(k.x, k.y + S.statGrubu.position.y, k.z); };
+function isimleriSec() {
+  isimListe = []; const cp = S.cam.position; if (cp.distanceTo(S.ctl.target) > 160) { if (benN) isimListe.push(benN); return; }
+  const aday = []; for (const n of koltuk.keys()) { const d = dunya(n).distanceToSquared(cp); if (d < 70 * 70) aday.push([d - (cevrimici.has(koltuk.get(n).u) ? 900 : 0), n]); }
+  aday.sort((a, b) => a[0] - b[0]); if (benN && !aday.some(a => a[1] === benN)) isimListe.push(benN);
+  const tut = [];
+  for (const [, n] of aday) { if (isimListe.length >= ISIM_N) break; dunya(n).y += 1.4; _p.project(S.cam); if (_p.z > 1 || Math.abs(_p.x) > 1 || Math.abs(_p.y) > 1) continue;
+    const sx = (_p.x + 1) / 2 * innerWidth, sy = (1 - _p.y) / 2 * innerHeight; if (sy < 120 || sy > innerHeight - 90) continue;
+    if (tut.some(([x, y]) => Math.abs(x - sx) < 90 && Math.abs(y - sy) < 20)) continue; tut.push([sx, sy]); isimListe.push(n); }
+}
+window.__KARE.push(t => {
+  if (t - isimZ > 250) { isimZ = t; isimleriSec(); }
+  for (let j = 0; j < ISIM_N; j++) { const d = isimEl[j], n = isimListe[j];
+    if (n === undefined) { d.style.display = 'none'; continue; }
+    dunya(n).y += (n === benN ? 2.0 : 1.45); _p.project(S.cam); if (_p.z > 1) { d.style.display = 'none'; continue; }
+    const kk = koltuk.get(n); if (!kk) { d.style.display = 'none'; continue; }
+    d.style.display = 'block'; d.style.left = ((_p.x + 1) / 2 * innerWidth) + 'px'; d.style.top = ((1 - _p.y) / 2 * innerHeight) + 'px';
+    const ad = kk.a + (n === benN ? ' · SEN' : ''); if (d.textContent !== ad) d.textContent = ad;
+    d.classList.toggle('ben', n === benN); d.classList.toggle('kapali', !cevrimici.has(kk.u) && n !== benN); }
+  for (const [n, o] of emojiler) { const yas = (t - o.t0) / 1000; if (yas > 3 || !koltuk.has(n)) { o.el.remove(); emojiler.delete(n); continue; }
+    dunya(n).y += 2.0 + yas * 0.5; _p.project(S.cam); if (_p.z > 1) { o.el.style.display = 'none'; continue; }
+    o.el.style.display = 'block'; o.el.style.left = ((_p.x + 1) / 2 * innerWidth) + 'px'; o.el.style.top = ((1 - _p.y) / 2 * innerHeight) + 'px'; o.el.style.opacity = String(Math.min(1, 3 - yas)); }
+});
+function emojiGoster(n, h) { const e = HAREKET[h]; if (!e) return; emojiler.get(n)?.el.remove(); const el = document.createElement('div'); el.className = 'u-emoji'; el.textContent = e[0]; etiketKap.appendChild(el); emojiler.set(n, {el, t0: performance.now()}); }
+
 /* ---------------- koltuk kartına sahip bilgisi ---------------- */
 window.__BILET_EK = i => {
   const n = indeksN[i], kk = koltuk.get(n);
-  if (!kk) return `<div style="margin-top:6px;font:700 12px system-ui;opacity:.8">Boş koltuk · no ${n.toLocaleString('tr-TR')}</div>`;
+  if (!kk) return `<div style="margin-top:6px;font:700 12px system-ui;opacity:.8">Boş koltuk · no ${n.toLocaleString('tr-TR')}</div>` +
+    (benN ? `<button data-gec="${n}" style="margin-top:8px;width:100%;font:800 13px system-ui;padding:9px;border-radius:9px;border:0;background:#e30a17;color:#fff;pointer-events:auto;cursor:pointer">🪑 Buraya geç</button>`
+          : ben ? '' : `<div style="font:600 11px system-ui;opacity:.7;margin-top:4px">Kayıt olunca buraya oturabilirsin.</div>`);
   const canli = cevrimici.has(kk.u) || n === benN;
   return `<div style="margin-top:8px;font:800 15px system-ui">${kacis(kk.a)}${n === benN ? ' (sen)' : ''}</div>
     <div style="font:700 12px system-ui;color:${canli ? '#20e36a' : '#999'}">${canli ? '● Şu an statta' : '○ Çevrimdışı'}</div>`;
@@ -231,6 +358,68 @@ onChildAdded(cRef, s => { cevrimici.add(s.key); const n = uidN.get(s.key); if (n
 onChildRemoved(cRef, s => { cevrimici.delete(s.key); const n = uidN.get(s.key); if (n) figGuncelle(n); noktalariCiz(); });
 const susturulan = new Set();
 onValue(ref(db, 'susturulan'), s => { susturulan.clear(); s.forEach(c => { susturulan.add(c.key); }); yazmaDurumu(); });
+
+
+/* ---------------- görünüm (giydirme) ve hareketler: herkes görür ---------------- */
+const gRef = ref(db, 'gorunum');
+const gorunumYaz = s => { gorunum.set(s.key, s.val() || {}); const n = uidN.get(s.key); if (n) figGuncelle(n); if (ben && s.key === ben.uid) { avatarKur(); benAvatarYerlestir(); } };
+onChildAdded(gRef, gorunumYaz); onChildChanged(gRef, gorunumYaz);
+const hRef = ref(db, 'hareket');
+const hareketAl = s => { const v = s.val(); if (!v || !v.h) return; if (Math.abs(Date.now() - v.t) > 8000) return; const n = uidN.get(s.key); if (!n) return;
+  emojiGoster(n, v.h); if (ben && s.key === ben.uid) return; if (['zipla', 'gol', 'selam', 'atki', 'alkis'].includes(v.h)) ziplat(n); };
+onChildAdded(hRef, hareketAl); onChildChanged(hRef, hareketAl);
+
+/* ---------------- kendi koltuğun değişince ---------------- */
+let oncekiBenN = null;
+function benYenile() {
+  for (const n of [oncekiBenN, benN]) { if (n == null) continue; const j = nFig.get(n); if (j !== undefined) { figMatris(n, j); figGuncelle(n); } }
+  GOVDE.instanceMatrix.needsUpdate = KAFA.instanceMatrix.needsUpdate = true; oncekiBenN = benN;
+  avatarKur(); benAvatarYerlestir();
+  $('uGiydirBtn').style.display = benN ? 'block' : 'none';
+  $('uHareket').classList.toggle('ac', !!benN);
+}
+// hareket çubuğu
+$('uHareket').innerHTML = Object.entries(HAREKET).filter(([h]) => h !== 'otur').map(([h, [e, ad]]) => `<button data-h="${h}" title="${ad}">${e}</button>`).join('');
+let sonHareket = 0;
+$('uHareket').onclick = async e => { const h = e.target.closest('button')?.dataset.h; if (!h || !benN) return;
+  hareketBaslat(h); emojiGoster(benN, h);
+  if (Date.now() - sonHareket < 2500) return; sonHareket = Date.now();
+  try { await set(ref(db, 'hareket/' + ben.uid), {h, t: serverTimestamp()}); } catch (er) {} };
+// dolap
+function dolapCiz() {
+  const G = gorunumAl(ben?.uid);
+  for (const tur of ['f', 't', 's', 'x']) { const el = $('uS_' + tur); el.innerHTML = '';
+    for (const [deger, ad, c] of DOLAP[tur]) { const b = document.createElement('button');
+      if (tur === 'f' || tur === 't') { b.style.background = deger === 'cubuk' ? 'repeating-linear-gradient(90deg,#151517 0 6px,#f2f2ef 6px 12px)' : c; b.title = ad; }
+      else { b.textContent = ad; if (c) { b.style.background = c; b.style.color = '#fff'; } }
+      b.classList.toggle('sec', G[tur] === deger);
+      b.onclick = async () => { const yeni = Object.assign({}, G, {[tur]: deger}); gorunum.set(ben.uid, yeni); avatarKur(); benAvatarYerlestir(); figGuncelle(benN); dolapCiz();
+        try { await set(ref(db, 'gorunum/' + ben.uid), yeni); } catch (er) { toast('Kaydedilemedi.'); } };
+      el.appendChild(b); } }
+}
+$('uGiydirBtn').onclick = () => { if (!benN) return; dolapCiz(); ac('uDolap'); ac('uSohbet', false); S.koltugaYakin(nIndeks(benN)); };
+$('uDolapKapat').onclick = () => ac('uDolap', false);
+$('uKoltukDegis').onclick = () => { ac('uDolap', false); toast('Boş bir koltuğa dokun, kartta "Buraya geç"e bas.', 4500); S.ucusGit(new THREE.Vector3(0, -6, 0), new THREE.Vector3(0, 70, -110), 1800, 20); };
+
+/* ---------------- koltuk değiştirme (yalnız boş koltuk) ---------------- */
+async function koltugaGec(n) {
+  if (!benN || !ben) return; if (koltuk.has(n)) { toast('Bu koltuk dolu.'); return; } if (n === benN) return;
+  const eski = benN;
+  try { await update(ref(db), {['koltuk/' + eski]: null, ['koltuk/' + n]: {u: ben.uid, a: benAd}, ['uye/' + ben.uid]: String(n)}); }
+  catch (e) { toast('Geçilemedi: koltuk az önce dolmuş olabilir.'); return; }
+  benN = n; benYenile(); varlikBaslat(); toast('Yeni koltuğun hazır 🪑'); S.koltugaUc(nIndeks(n));
+}
+document.getElementById('bilet').addEventListener('click', e => { const b = e.target.closest('[data-gec]'); if (b) koltugaGec(+b.dataset.gec); });
+
+/* ---------------- figüre dokununca koltuk kartı ---------------- */
+{ const ray = new THREE.Raycaster(), m = new THREE.Vector2(); let bas = null; const cv = document.getElementById('c');
+  cv.addEventListener('pointerdown', e => bas = [e.clientX, e.clientY]);
+  cv.addEventListener('pointerup', e => { if (!bas || Math.hypot(e.clientX - bas[0], e.clientY - bas[1]) > 6) return;
+    m.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(m, S.cam);
+    const hedef = GOVDE.visible ? [GOVDE, KAFA] : [GOVDE_S, KAFA_S]; const h = ray.intersectObjects(hedef)[0];
+    const hb = benAvatar.visible ? ray.intersectObject(benAvatar, true)[0] : null;
+    if (hb && (!h || hb.distance < h.distance)) { S.biletGoster(nIndeks(benN)); return; }
+    if (h) { const n = figSira[h.instanceId]; if (n) S.biletGoster(nIndeks(n)); } }); }
 
 /* ---------------- çevrimiçi durumu ---------------- */
 let varlikDinle = null;
@@ -270,7 +459,7 @@ $('uSifreUnut').onclick = async e => { e.preventDefault(); const em = $('uEposta
 
 onAuthStateChanged(auth, async u => {
   await varlikBitir();
-  ben = u; benN = null; benAd = null;
+  ben = u; benN = null; benAd = null; benYenile();
   yonetici = !!(u && u.email === YONETICI_EPOSTA && u.emailVerified);
   if (!u) { $('uGirisBtn').textContent = 'Kayıt ol / Giriş'; yazmaDurumu(); mesajlariYenidenCiz(); return; }
   ac('uGiris', false);
@@ -281,7 +470,7 @@ onAuthStateChanged(auth, async u => {
 });
 function koltugumOldu() {
   $('uGirisBtn').textContent = '👤 ' + (benAd || 'Hesabım');
-  figGuncelle(benN); varlikBaslat(); yazmaDurumu();
+  benYenile(); varlikBaslat(); yazmaDurumu();
 }
 
 /* ---------------- koltuk alma ---------------- */
@@ -327,6 +516,7 @@ $('uHesapSil').onclick = async () => {
     await varlikBitir();
     const g = {['uye/' + ben.uid]: null}; if (benN) g['koltuk/' + benN] = null;
     await update(ref(db), g);
+    await remove(ref(db, 'gorunum/' + ben.uid)).catch(() => {}); await remove(ref(db, 'hareket/' + ben.uid)).catch(() => {});
     await deleteUser(ben);
     ac('uHesap', false); toast('Hesabın silindi.');
   } catch (e) {

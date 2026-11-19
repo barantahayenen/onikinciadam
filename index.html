@@ -21,6 +21,11 @@ html,body{margin:0;height:100%;background:#8fb6e0;overflow:hidden;font-family:sy
 .bilet .alanlar b{font-size:18px}
 .alt{position:fixed;left:12px;right:12px;bottom:12px;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;z-index:5}
 .alt::-webkit-scrollbar{display:none}
+.kontrol{position:fixed;z-index:5;font:800 13px system-ui;padding:9px 12px;border-radius:10px;border:1px solid #444;background:rgba(12,12,13,.9);color:#fff;touch-action:none;user-select:none}
+#yukAsa{position:fixed;left:12px;bottom:62px;z-index:5;display:flex;flex-direction:column;gap:6px}
+#yukAsa .kontrol{position:static;width:46px;height:42px;padding:0;font-size:16px}
+#ipucu{position:fixed;left:50%;bottom:64px;transform:translateX(-50%);z-index:5;background:rgba(12,12,13,.86);color:#ddd;font:600 12px system-ui;padding:7px 12px;border-radius:10px;white-space:nowrap;transition:opacity .6s;pointer-events:none;max-width:calc(100vw - 130px);overflow:hidden;text-overflow:ellipsis}
+#ipucu.kapali{opacity:0}
 .alt button{flex:0 0 auto;font:800 13px system-ui;padding:9px 12px;border-radius:10px;border:1px solid #444;background:rgba(12,12,13,.9);color:#fff}
 #fps{position:fixed;right:10px;top:12px;font:700 11px system-ui;color:#fff;text-shadow:0 1px 2px #000;z-index:6}
 </style>
@@ -35,6 +40,9 @@ html,body{margin:0;height:100%;background:#8fb6e0;overflow:hidden;font-family:sy
 <div id="uyelik"></div>
 <div style="position:fixed;right:8px;bottom:58px;font:600 9px system-ui;color:#fff;opacity:.75;text-shadow:0 1px 2px #000;z-index:6;pointer-events:none">Harita verisi © OpenStreetMap katkıcıları</div>
 <div class="alt" id="alt"></div>
+<button id="kusBtn" class="kontrol" style="right:12px;bottom:118px;display:none">⤢ Kuş bakışı</button>
+<div id="yukAsa"><button id="yUp" class="kontrol">▲</button><button id="yDn" class="kontrol">▼</button></div>
+<div id="ipucu"></div>
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
 </script>
@@ -103,7 +111,12 @@ function gokKur(){const sky=new Sky(); sky.scale.setScalar(8000); const u=sky.ma
 {const pm=new THREE.PMREMGenerator(renderer), gs=new THREE.Scene(); gs.add(gokKur()); scene.environment=pm.fromScene(gs,0,1,9000).texture; pm.dispose();}
 scene.fog=new THREE.Fog(0xb9cfe5,1800,9000);
 const cam=new THREE.PerspectiveCamera(45,1,0.5,9000); cam.position.set(170,130,190);
-const ctl=new OrbitControls(cam,cv); ctl.target.set(0,8,0); ctl.enableDamping=true; ctl.maxPolarAngle=Math.PI*0.495; ctl.minDistance=5; ctl.maxDistance=2500;
+const ctl=new OrbitControls(cam,cv); ctl.target.set(0,8,0);
+const MOBIL_DOKUN=matchMedia('(pointer:coarse)').matches;
+// Kamera (5. Tribün'den): kaydırma zemin düzleminde, eğim ~85°, imlece/parmaklara doğru yakınlaşma, cihaza göre hızlar
+ctl.enableDamping=true; ctl.dampingFactor=0.1; ctl.maxPolarAngle=Math.PI*0.47; ctl.minDistance=2; ctl.maxDistance=2500;
+ctl.screenSpacePanning=false; ctl.zoomToCursor=true; ctl.zoomSpeed=MOBIL_DOKUN?1.3:1.1; ctl.rotateSpeed=MOBIL_DOKUN?0.55:0.75; ctl.panSpeed=MOBIL_DOKUN?1.1:1.0;
+ctl.touches={ONE:THREE.TOUCH.ROTATE, TWO:THREE.TOUCH.DOLLY_PAN};
 scene.add(new THREE.HemisphereLight(0xdfeaff,0x6f6a5c,0.55));
 const gunes=new THREE.DirectionalLight(0xfff1dc,3.2); gunes.position.copy(GUNES_YON).multiplyScalar(400); scene.add(gunes); scene.add(gunes.target);
 {const sc=gunes.shadow.camera; sc.left=-175; sc.right=175; sc.top=175; sc.bottom=-175; sc.near=50; sc.far=900;
@@ -196,7 +209,7 @@ function koltukRengi(k,i){
   if(dilim(k.t).kose) return x<0.12?AYAR.renk.ustGri:AYAR.renk.ustSiyah;   // alt kat köşeleri siyah
   return x<0.10?AYAR.renk.altGri:AYAR.renk.altBeyaz;
 }
-const koltukGeo=(()=>{const a=new THREE.BoxGeometry(0.44,0.08,0.40);a.translate(0,0.42,0);const b=new THREE.BoxGeometry(0.44,0.42,0.07);b.translate(0,0.63,0.19);return mergeGeometries([a,b]);})();
+const koltukGeo=(()=>{const a=new THREE.BoxGeometry(0.44,0.08,0.40);a.translate(0,0.42,0);const b=new THREE.BoxGeometry(0.44,0.42,0.07);b.translate(0,0.63,-0.19);return mergeGeometries([a,b]);})();
 const KM=new THREE.InstancedMesh(koltukGeo,new THREE.MeshStandardMaterial({color:0xffffff,roughness:0.45,metalness:0}),koltuklar.length);
 const asilRenk=new Uint32Array(koltuklar.length);
 {const m=new THREE.Matrix4(),q=new THREE.Quaternion(),e=new THREE.Euler(),s=new THREE.Vector3(1,1,1),c=new THREE.Color(),v=new THREE.Vector3();
@@ -542,9 +555,45 @@ const NOKTA={
   'Çatı altı':[[0,-6,-8],[0,30,30]], 'Boğaz\'dan':[[deniz[0],55,deniz[1]],[0,12,0]], 'Dolmabahçe':[[ST(250,-520)[0],120,ST(250,-520)[1]],[-120,0,-60]], 'Kuş bakışı':[[0,520,1],[0,0,0]],
 };
 const alt=document.getElementById('alt');
-for(const [k,[p,t]] of Object.entries(NOKTA)){const b=document.createElement('button');b.textContent=k;b.onclick=()=>{cam.position.set(...p);ctl.target.set(...t);};alt.appendChild(b);}
-window.__KAMERA=k=>{const [p,t]=NOKTA[k];cam.position.set(...p);ctl.target.set(...t);ctl.update();};
-window.__KAMERA_SET=(p,t)=>{cam.position.set(...p);ctl.target.set(...t);ctl.update();};
+for(const [k,[p,t]] of Object.entries(NOKTA)){const b=document.createElement('button');b.textContent=k;b.onclick=()=>{kusBtn.style.display='none'; ucusGit(new THREE.Vector3(...t),new THREE.Vector3(...p),1800,(p[1]>100?40:0));};alt.appendChild(b);}
+/* ============ kamera: uçuş, tuşlar, yukarı-aşağı, çift dokun (5. Tribün'den) ============ */
+let ucusVeri=null; const kusBtn=document.getElementById('kusBtn');
+function ucusGit(tt,tc,dur=1400,kavis=0){ucusVeri={t0:performance.now(),dur,ft:ctl.target.clone(),fc:cam.position.clone(),tt,tc,kavis};}
+kusBtn.onclick=()=>{kusBtn.style.display='none'; ucusGit(new THREE.Vector3(0,8,0),new THREE.Vector3(170,130,190),2200,40);};
+const tuslar=new Set();
+for(const [id,tus] of [['yUp','yukari'],['yDn','asagi']]){ const el=document.getElementById(id), bas=e=>{e.preventDefault(); tuslar.add(tus); try{el.setPointerCapture(e.pointerId);}catch(_){}}, birak=()=>tuslar.delete(tus);
+  el.addEventListener('pointerdown',bas); el.addEventListener('pointerup',birak); el.addEventListener('pointercancel',birak); el.addEventListener('lostpointercapture',birak); }
+addEventListener('keydown',e=>{ if(e.target.tagName==='INPUT') return; const k=e.key.toLowerCase(); if(['w','a','s','d','q','e','r','f','c',' ','arrowup','arrowdown','arrowleft','arrowright','+','-','='].includes(k)){tuslar.add(k); e.preventDefault();} });
+addEventListener('keyup',e=>tuslar.delete(e.key.toLowerCase())); addEventListener('blur',()=>tuslar.clear());
+const _f=new THREE.Vector3(), _r=new THREE.Vector3(), _o2=new THREE.Vector3(); let _sonT=0;
+const ZEMIN_Y=-ZEMIN_ALT; // saha seviyesi
+function tusHareket(t){ const dt=Math.min(0.05,(t-(_sonT||t))/1000); _sonT=t; if(!tuslar.size||ucusVeri) return;
+  const uz=cam.position.distanceTo(ctl.target), hiz=Math.max(6,uz*0.55)*dt;
+  cam.getWorldDirection(_f); _f.y=0; _f.normalize(); _r.crossVectors(_f,cam.up).normalize();
+  let ileri=0,yan=0,don=0,yak=0,dik=0;
+  if(tuslar.has('w')||tuslar.has('arrowup')) ileri++; if(tuslar.has('s')||tuslar.has('arrowdown')) ileri--;
+  if(tuslar.has('d')||tuslar.has('arrowright')) yan++; if(tuslar.has('a')||tuslar.has('arrowleft')) yan--;
+  if(tuslar.has('q')) don++; if(tuslar.has('e')) don--; if(tuslar.has('r')||tuslar.has('+')||tuslar.has('=')) yak--; if(tuslar.has('f')||tuslar.has('-')) yak++;
+  if(tuslar.has('yukari')||tuslar.has(' ')) dik++; if(tuslar.has('asagi')||tuslar.has('c')) dik--;
+  if(dik){ const ty=THREE.MathUtils.clamp(ctl.target.y+dik*hiz*0.8,ZEMIN_Y,160), dy=ty-ctl.target.y; ctl.target.y=ty; cam.position.y=Math.max(ZEMIN_Y+1.5,cam.position.y+dy); }
+  const mv=_f.clone().multiplyScalar(ileri*hiz).addScaledVector(_r,yan*hiz); cam.position.add(mv); ctl.target.add(mv);
+  _o2.subVectors(cam.position,ctl.target); if(don) _o2.applyAxisAngle(cam.up,don*1.6*dt);
+  if(yak) _o2.setLength(THREE.MathUtils.clamp(_o2.length()*Math.pow(1.9,yak*dt),ctl.minDistance,ctl.maxDistance));
+  cam.position.copy(ctl.target).add(_o2); }
+// çift dokun / çift tık: dokunulan yere uç (koltuklar, stat yapısı ya da zemin)
+const _zemin=new THREE.Plane(new THREE.Vector3(0,1,0),-ZEMIN_Y), _ray2=new THREE.Raycaster();
+function odakla(cx,cy){ const m2=new THREE.Vector2(cx/innerWidth*2-1,-(cy/innerHeight)*2+1); _ray2.setFromCamera(m2,cam);
+  const h=_ray2.intersectObject(KM)[0]; let p=h?h.point.clone():new THREE.Vector3(); if(!h && !_ray2.ray.intersectPlane(_zemin,p)) return;
+  const yon=cam.position.clone().sub(ctl.target).normalize(), uz=THREE.MathUtils.clamp(cam.position.distanceTo(ctl.target)*0.45,12,420);
+  const poz=p.clone().addScaledVector(yon,uz); poz.y=Math.max(p.y+5,poz.y); kusBtn.style.display='block'; ucusGit(p,poz,900); }
+cv.addEventListener('dblclick',e=>odakla(e.clientX,e.clientY));
+let _sonDokun=0; cv.addEventListener('pointerup',e=>{ if(e.pointerType!=='touch') return; if(!basla||Math.hypot(e.clientX-basla[0],e.clientY-basla[1])>6) return;
+  const n=performance.now(); if(n-_sonDokun<320){_sonDokun=0; odakla(e.clientX,e.clientY);} else _sonDokun=n; });
+const ipucu=document.getElementById('ipucu');
+ipucu.innerHTML=MOBIL_DOKUN?'<b>1 parmak</b> döndür · <b>2 parmak</b> yakınlaş/kaydır · <b>▲▼</b> yukarı-aşağı · <b>çift dokun</b> oraya uç':'<b>Sürükle</b> döndür · <b>Tekerlek</b> yakınlaş · <b>WASD</b> gez · <b>Q/E</b> dön · <b>Boşluk/C</b> yukarı-aşağı · <b>çift tık</b> oraya uç';
+setTimeout(()=>ipucu.classList.add('kapali'),MOBIL_DOKUN?7000:12000);
+window.__KAMERA=k=>{const [p,t]=NOKTA[k];ucusVeri=null;cam.position.set(...p);ctl.target.set(...t);ctl.update();};
+window.__KAMERA_SET=(p,t)=>{ucusVeri=null;cam.position.set(...p);ctl.target.set(...t);ctl.update();};
 window.__SEC=i=>biletGoster(i);
 
 scene.traverse(o=>{if(!o.isMesh)return; const p=o.position; const yakin=(o.isInstancedMesh&&o!==KM)?false:Math.hypot(p.x,p.z)<200;
@@ -554,12 +603,22 @@ function boyut(){const w=innerWidth,h=innerHeight;renderer.setSize(w,h,false);ca
 addEventListener('resize',boyut);boyut();
 let fz=0,fn=0;const fe=document.getElementById('fps');
 window.__KARE=[];
-function dongu(t){ctl.update();for(const f of window.__KARE)f(t);renderer.render(scene,cam);fn++;if(t-fz>1000){fe.textContent=fn+' fps · v0.12 · '+KALITE;if(fn<28&&PR>1.0&&!url.has('kalite')){PR=Math.max(1,PR-0.25);renderer.setPixelRatio(PR);boyut();}fz=t;fn=0;}requestAnimationFrame(dongu);}
+function dongu(t){ tusHareket(t);
+  if(ucusVeri){const k=Math.min(1,(t-ucusVeri.t0)/ucusVeri.dur), e=k<.5?4*k*k*k:1-Math.pow(-2*k+2,3)/2;
+    ctl.target.lerpVectors(ucusVeri.ft,ucusVeri.tt,e); cam.position.lerpVectors(ucusVeri.fc,ucusVeri.tc,e); cam.position.y+=Math.sin(Math.PI*e)*(ucusVeri.kavis||0); ctl.enabled=false; if(k>=1){ucusVeri=null; ctl.enabled=true;}}
+  else ctl.update();
+  if(ctl.target.y<ZEMIN_Y) ctl.target.y=ZEMIN_Y; if(cam.position.y<ZEMIN_Y+1.2) cam.position.y=ZEMIN_Y+1.2;
+  for(const f of window.__KARE)f(t);renderer.render(scene,cam);fn++;if(t-fz>1000){fe.textContent=fn+' fps · v0.13 · '+KALITE;if(fn<28&&PR>1.0&&!url.has('kalite')){PR=Math.max(1,PR-0.25);renderer.setPixelRatio(PR);boyut();}fz=t;fn=0;}requestAnimationFrame(dongu);}
 requestAnimationFrame(dongu);
 function koltugaUc(i){const k=koltuklar[i],p=ic(k.t),d=sira(k.kat,k.r).d; const g=window.__statGrubu.position.y;
   const yon=new THREE.Vector3(-p.nx,0,-p.nz); const goz=new THREE.Vector3(k.x,k.y+g+1.25,k.z);
-  cam.position.copy(goz).addScaledVector(yon,-0.4); ctl.target.copy(goz).addScaledVector(yon,30).setY(g+2); ctl.update(); biletGoster(i);}
-window.__STAT={THREE,scene,statGrubu:window.__statGrubu,cam,ctl,KM,koltuklar,asilRenk,biletGoster,isaretle,dilim,koltugaUc,url};
+  const tc=goz.clone().addScaledVector(yon,-0.4), tt=goz.clone().addScaledVector(yon,30).setY(g+2); kusBtn.style.display='block'; ucusGit(tt,tc,1800,8); biletGoster(i);}
+function koltugaYakin(i){ // koltuğu yakından, önden-yukarıdan göster (giydirme için)
+  const k=koltuklar[i],p=ic(k.t),g=window.__statGrubu.position.y, kp=new THREE.Vector3(k.x,k.y+g+0.7,k.z);
+  const dar=innerHeight>innerWidth; // telefonda giydirme paneli alttan açılır: karakter ekranın üst kısmında kalsın
+  const tt=kp.clone().add(new THREE.Vector3(0,dar?-1.0:-0.4,0)), tc=kp.clone().add(new THREE.Vector3(-p.nx*(dar?3.6:4.5),dar?2.7:1.6,-p.nz*(dar?3.6:4.5)));
+  kusBtn.style.display='block'; ucusGit(tt,tc,1500,4);}
+window.__STAT={THREE,scene,statGrubu:window.__statGrubu,cam,ctl,KM,koltuklar,asilRenk,biletGoster,isaretle,dilim,koltugaUc,koltugaYakin,ucusGit,url,ic};
 window.__HAZIR=true;
 </script>
 <script type="module" src="uyelik.js?v=1"></script>
